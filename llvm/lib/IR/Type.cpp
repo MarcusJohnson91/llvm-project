@@ -613,6 +613,21 @@ bool ArrayType::isValidElementType(Type *ElemTy) {
          !ElemTy->isTokenTy() && !isa<ScalableVectorType>(ElemTy);
 }
 
+/// This function is specific for handling format strings, because C11 defines char16_t and char32_t as typedefs of uint_leastX_t instead of as BuiltInTypes
+bool Type::isTypedefCharacterType(ASTContext &AST) const {
+  // Are we in C mode?
+  // If we are in C mode, check if the string type is char16_t or char32_t, maybe wchar_t too for when thats just a typedef
+  // If we are not in C mode, just check if the type is a builtin character type.
+  AST.getLangOpts().C11;
+  ASTContext->getLangOpts().isC(); // ASTContext is a friend class of Type
+  LangOptions &Lang = LangOptions();
+  if (Lang) {
+    <#statements#>
+  }
+
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 //                          VectorType Implementation
 //===----------------------------------------------------------------------===//

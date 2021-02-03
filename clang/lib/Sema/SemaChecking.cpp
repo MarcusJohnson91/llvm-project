@@ -146,6 +146,7 @@ static bool SemaBuiltinAnnotation(Sema &S, CallExpr *TheCall) {
   // Second argument should be a constant string.
   Expr *StrArg = TheCall->getArg(1)->IgnoreParenCasts();
   StringLiteral *Literal = dyn_cast<StringLiteral>(StrArg);
+  // You can cast Expr to StringLiteral
   if (!Literal || !Literal->isAscii()) {
     S.Diag(StrArg->getBeginLoc(), diag::err_builtin_annotation_second_arg)
         << StrArg->getSourceRange();
@@ -9046,13 +9047,45 @@ static void CheckFormatString(Sema &S, const FormatStringLiteral *FExpr,
                               UncoveredArgHandler &UncoveredArg,
                               bool IgnoreStringsWithoutSpecifiers) {
   // CHECK: is the format string a wide literal?
-  if (!FExpr->isAscii() && !FExpr->isUTF8()) {
+  /*
+   FExpr->getKind returns enum StringKind
+   But we need to try to get the actual type
+   What about FExpr->getCharByteWidth(), which should return 1, 2, or 4
+   
+   Then maybe we can get the Expr->size and if they match we're good? it's kinda hacky but whateve
+   theres a Expr->getKind()
+   
+   What is ExprValueKind.getValueKind()?
+   
+   findBoundMemberType
+   */
+  int ParameterSize               = FExpr->getCharByteWidth();
+  QualType LiteralType            = OrigFormatExpr->getType(); // ->getCanonicalType()
+                                                               //printf("ERROR: %s: ParameterSize: %u, LiteralType: %s\n", __PRETTY_FUNCTION__, ParameterSize, LiteralType.getAsString().c_str());
+                                                               //const QualType LiteralCanonical = LiteralType->getCanonicalType();
+  
+  
+  //const StringLiteral *Param    = FExpr->FExpr;
+  //int StringLiteralSize         = Param->getCharByteWidth();
+  //QualType ParamType            = Param->getCanonicalType();
+  //QualType ParameterType = OrigFormatExpr->castAs<StringLiteral>()->getCanonicalType();
+  //QualType LiteralType   = FExpr->getType()->getCanonicalType();
+  /*
+   QualType StringLiteralType = FExpr->getCanonicalType(); // getType
+   QualType FormatExprType    = OrigFormatExpr->getCanonicalType(); // getType
+   */
+  /*
+  if (ParameterSize != LiteralType) {
     CheckFormatHandler::EmitFormatDiagnostic(
-        S, inFunctionCall, Args[format_idx],
-        S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
-        /*IsStringLocation*/ true, OrigFormatExpr->getSourceRange());
+                                             S, inFunctionCall, Args[format_idx],
+                                             S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
+                                             /*IsStringLocation true, OrigFormatExpr->getSourceRange());
+    S, inFunctionCall, Args[format_idx],
+    S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
+    //IsStringLocation true, OrigFormatExpr->getSourceRange());
     return;
   }
+   */
 
   // Str - The format string.  NOTE: this is NOT null-terminated!
   StringRef StrRef = FExpr->getString();

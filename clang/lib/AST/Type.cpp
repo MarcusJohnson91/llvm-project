@@ -52,6 +52,7 @@
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
+#include <iostream>
 
 using namespace clang;
 
@@ -1995,6 +1996,52 @@ bool Type::isAnyCharacterType() const {
   case BuiltinType::WChar_S:
     return true;
   }
+}
+
+/// Gets if a type is a C specific typedef, like wchar_t, char16_t, char32_t
+bool Type::isTypedefCharacterType(const ASTContext &AST) const {
+  bool  IsCharacterTypedef = false;
+  auto  FormatType         = dyn_cast<QualType>(CanonicalType)->getUnqualifiedType();
+  //LangOptions &LO = QT->getInterface()->getASTContext->getLangOpts();
+
+  /*
+   LangOptions is irrelevent, just loop over the type of the argument and drill down through the typedefs stopping when it reaches wchar_t, char8_t, char16_t, char32_t, or it's the Canonical type
+   */
+
+  while (!dyn_cast<QualType>(FormatType)->isCanonical()) { // Loop over typedefs
+                                    // Now we need a way to get the name of the type, and if it's not one of the typedef types (wchar_t, char8_t, char16_t, char32_t), to repeat the process
+
+    FormatType = dyn_cast<QualType>(FormatType)->getLocallyUnqualifiedSingleStepDesugaredType(); // (AST) .getPointeeType()->getAs<TypedefType>()->getDecl()->getIdentifier()
+    std::cout << "isTypedefCharacterType: SingleStepDesugar-UnqualifiedType: " << dyn_cast<QualType>(FormatType->getUnqualifiedType())->getAsString() << std::endl;
+    // getDecl()->getIdentifier().getName()
+
+    if (FormatType->getDecl()->getIdentifier()->isStr("wchar_t")) { // replace getIdentifier with getName?
+      IsCharacterTypedef = true;
+      break;
+    } else if (FormatType->getDecl()->getIdentifier()->isStr("char16_t")) {
+      IsCharacterTypedef = true;
+      break;
+    } else if (FormatType->getDecl()->getIdentifier()->isStr("char32_t")) {
+      IsCharacterTypedef = true;
+      break;
+    }
+
+    /*
+     QualType clang::QualType::getSingleStepDesugaredType  (  const ASTContext &   Context  )  const
+     inline
+     Return the specified type with one level of "sugar" removed from the type.
+
+     This routine takes off the first typedef, typeof, etc. If the outer level of the type is already concrete, it returns it unmodified.
+
+     So, if it has any number of Pointer or References it still counts so we'll need to treat Pointer types differently
+
+     It must be a pointer type in order for format arguments to work anyway so this isn't a big deal?
+
+     We need to modify the type so we can remove the levels of "sugar" so we'll have to do that
+     */
+
+  }
+  return IsCharacterTypedef;
 }
 
 /// isSignedIntegerType - Return true if this is an integer type that is

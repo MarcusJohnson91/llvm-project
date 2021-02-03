@@ -42,6 +42,7 @@
 #include "llvm/IR/Assumptions.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <iostream>
 
 using namespace clang;
 using namespace sema;
@@ -3316,22 +3317,23 @@ static void handleFormatArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
 
   // Make sure the format string is really a string.
   QualType Ty = getFunctionOrMethodParamType(D, Idx.getASTIndex());
+  std::cout << "isTypedefCharacterType: " << Ty->getTypePtrUnsafe()->getPointeeOrArrayElementType()->isTypedefCharacterType(getASTContext()) << std::endl;
+  // ^Was: Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType()
 
   bool NotNSStringTy = !isNSStringType(Ty, S.Context);
   if (NotNSStringTy &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       !Ty->castAs<PointerType>()->getPointeeType()->isCharType())) {
-    S.Diag(AL.getLoc(), diag::err_format_attribute_not)
-        << "a string type" << IdxExpr->getSourceRange()
-        << getFunctionOrMethodParamRange(D, 0);
+       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() && !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())))) {
+    S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
+    << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, Idx.getASTIndex());
     return;
   }
   Ty = getFunctionOrMethodResultType(D);
   if (!isNSStringType(Ty, S.Context) &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       !Ty->castAs<PointerType>()->getPointeeType()->isCharType())) {
+       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() && !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())))) {
     S.Diag(AL.getLoc(), diag::err_format_attribute_result_not)
         << (NotNSStringTy ? "string type" : "NSString")
         << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, 0);
@@ -3435,6 +3437,13 @@ FormatAttr *Sema::mergeFormatAttr(Decl *D, const AttributeCommonInfo &CI,
 /// Handle __attribute__((format(type,idx,firstarg))) attributes based on
 /// http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html
 static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  /*
+   Parses the actual attribute:
+
+   First it's gonna count the number of parameters in the format function, and then check the indexes, and then it will eventually check the type of the string argument.
+
+   That is whe we need to check if we're in C mode, and if we are, if the string and argument match and if they are a typedef
+   */
   if (!AL.isArgIdent(0)) {
     S.Diag(AL.getLoc(), diag::err_attribute_argument_n_type)
         << AL << 1 << AANT_ArgumentIdentifier;
@@ -3492,7 +3501,7 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 
   // make sure the format string is really a string
-  QualType Ty = getFunctionOrMethodParamType(D, ArgIdx);
+  QualType Ty = getFunctionOrMethodParamType(D, ArgIdx); // So this is what we need to check if were in C mode and if so we need to check for typedefs?
 
   if (Kind == CFStringFormat) {
     if (!isCFStringType(Ty, S.Context)) {
@@ -3511,10 +3520,18 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
       return;
     }
   } else if (!Ty->isPointerType() ||
-             !Ty->castAs<PointerType>()->getPointeeType()->isCharType()) {
-    S.Diag(AL.getLoc(), diag::err_format_attribute_not)
-      << "a string type" << IdxExpr->getSourceRange()
-      << getFunctionOrMethodParamRange(D, ArgIdx);
+              !Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() ||
+              LangOptions() != C11
+              !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())
+              )
+             ) {
+               /*
+                Maybe I should just add a function specific for this that does all the LangOpts checking, and typedef checks, and all that?
+
+                isTypedefCharacterType could be the name of the function?
+                */
+    S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
+    << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, ArgIdx);
     return;
   }
 
