@@ -52,6 +52,8 @@ add_subdirectory(dirent)
 # add_subdirectory(signal)
 add_subdirectory(stdio)
 add_subdirectory(time)
+add_subdirectory(unistd)
+add_subdirectory(uchar)
 
 if(${LIBC_TARGET_OS} STREQUAL "linux")
   add_subdirectory(pthread)

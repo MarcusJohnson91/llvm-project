@@ -1,0 +1,48 @@
+//===---------------- C standard library header uchar.h ------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIBC_UCHAR_H
+#define LLVM_LIBC_UCHAR_H
+
+#include <__llvm-libc-mbstate.h>
+
+typedef __Llvm_libc_mbstate_t _Mbstate_t;
+
+typedef _Mbstate_t mbstate_t;
+
+#if !defined(_CHAR16_T)
+#define _CHAR16_T
+#if defined(__CHAR16_TYPE__)
+typedef __CHAR16_TYPE__ char16_t;
+#else
+typedef uint_least16_t  char16_t;
+#endif // !defined(_CHAR16_T)
+
+#if !defined(_CHAR32_T)
+#define _CHAR32_T
+#if defined(__CHAR32_TYPE__)
+typedef __CHAR32_TYPE__ char32_t;
+#else
+typedef uint_least32_t  char32_t;
+#endif // !defined(_CHAR32_T)
+
+#if !defined(__STDC_UTF_16__)
+#define __STDC_UTF_16__ 1 /* char16_t values are UTF-16 encoded */
+#endif
+
+#if !defined(__STDC_UTF_32__)
+#define __STDC_UTF_32__ 1 /* char32_t values are UTF-32 encoded */
+#endif
+
+#if defined(__has_include) && __has_include(<uchar.h>)
+%%include_file(${platform_uchar})
+#endif
+
+%%public_api()
+
+#endif // LLVM_LIBC_UCHAR_H

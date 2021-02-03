@@ -1,0 +1,32 @@
+//===---------------- C standard library header signal.h ------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIBC_WCHAR_H
+#define LLVM_LIBC_WCHAR_H
+
+#include <__llvm-libc-mbstate.h>
+
+#if !defined(_WCHAR_T)
+#define _WCHAR_T
+#if defined(__WCHAR_TYPE__)
+typedef __WCHAR_TYPE__ wchar_t;
+#endif /* defined(__WCHAR_TYPE__) */
+#endif /* defined(_WCHAR_T) */
+
+#if !defined(_WINT_T)
+#define _WINT_T
+#if defined(__WINT_TYPE__)
+typedef __WINT_TYPE__ wint_t;
+#endif /* defined(__WCHAR_TYPE__) */
+#endif /* defined(_WINT_T) */
+
+%%include_file(${platform_wchar})
+
+%%public_api()
+
+#endif // LLVM_LIBC_WCHAR_H
