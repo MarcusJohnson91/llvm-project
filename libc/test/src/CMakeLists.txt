@@ -55,6 +55,8 @@ add_subdirectory(setjmp)
 add_subdirectory(signal)
 add_subdirectory(spawn)
 add_subdirectory(time)
+add_subdirectory(unistd)
+add_subdirectory(uchar)
 
 if(${LIBC_TARGET_OS} STREQUAL "linux")
   add_subdirectory(pthread)

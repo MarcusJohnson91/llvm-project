@@ -983,6 +983,60 @@ def StdC : StandardSpec<"stdc"> {
       ]
   >;
 
+  HeaderSpec Uchar = HeaderSpec<
+      "uchar.h",
+      [
+          Macro<"__STDC_UTF_16__">,
+          Macro<"__STDC_UTF_32__">,
+      ],
+      [
+          OnceFlagType,
+          CallOnceFuncType,
+          MtxTType,
+          ThrdStartTType,
+          ThrdTType,
+      ],
+      [
+          EnumeratedNameValue<"mtx_plain">,
+          EnumeratedNameValue<"mtx_recursive">,
+          EnumeratedNameValue<"mtx_timed">,
+          EnumeratedNameValue<"thrd_timedout">,
+          EnumeratedNameValue<"thrd_success">,
+          EnumeratedNameValue<"thrd_busy">,
+          EnumeratedNameValue<"thrd_error">,
+          EnumeratedNameValue<"thrd_nomem">,
+      ],
+      [
+      FunctionSpec<
+          "c16rtomb",
+          RetValSpec<VoidType>,
+          [
+              ArgSpec<OnceFlagTypePtr>,
+              ArgSpec<CallOnceFuncType>,
+          ]
+      >,
+      FunctionSpec<
+          "c32rtomb",
+          RetValSpec<IntType>,
+          [
+              ArgSpec<MtxTTypePtr>,
+              ArgSpec<IntType>,
+          ]
+      >,
+      FunctionSpec<
+          "mbrtoc16",
+          RetValSpec<IntType>,
+          [
+              ArgSpec<MtxTTypePtr>,
+          ]
+      >,
+      FunctionSpec<
+          "mbrtoc32",
+          RetValSpec<IntType>,
+          [
+              ArgSpec<MtxTTypePtr>,
+          ]
+      >
   HeaderSpec Time = HeaderSpec<
       "time.h",
       [], // Macros
@@ -1083,5 +1137,6 @@ def StdC : StandardSpec<"stdc"> {
     Signal,
     Threads,
     Time,
+    Uchar,
   ];
 }

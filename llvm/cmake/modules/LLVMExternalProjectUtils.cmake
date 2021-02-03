@@ -1,5 +1,7 @@
 include(ExternalProject)
 
+cmake_policy(SET CMP0002 OLD)
+
 # llvm_ExternalProject_BuildCmd(out_var target)
 #   Utility function for constructing command lines for external project targets
 function(llvm_ExternalProject_BuildCmd out_var target bin_dir)

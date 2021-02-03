@@ -223,6 +223,22 @@ add_gen_header(
 )
 
 add_gen_header(
+  uchar
+  DEF_FILE uchar.h.def
+  GEN_HDR uchar.h
+  DEPENDS
+    .llvm_libc_common_h
+)
+
+add_gen_header(
+  wchar
+  DEF_FILE wchar.h.def
+  GEN_HDR wchar.h
+  DEPENDS
+    .llvm_libc_common_h
+)
+
+add_gen_header(
   pthread
   DEF_FILE pthread.h.def
   GEN_HDR pthread.h
@@ -236,6 +252,7 @@ add_gen_header(
     .llvm-libc-types.pthread_mutex_t
     .llvm-libc-types.pthread_mutexattr_t
     .llvm-libc-types.pthread_t
+
     .llvm-libc-types.pthread_key_t
     .llvm-libc-types.pthread_once_t
 )
@@ -263,6 +280,7 @@ add_gen_header(
     .llvm-libc-types.posix_spawnattr_t
     .llvm-libc-types.posix_spawn_file_actions_t
 )
+
 
 # TODO: Not all platforms will have a include/sys directory. Add the sys
 # directory and the targets for sys/*.h files conditional to the OS requiring
