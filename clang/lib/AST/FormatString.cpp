@@ -239,6 +239,19 @@ clang::analyze_format_string::ParseLengthModifier(FormatSpecifier &FS,
         lmKind = LengthModifier::AsLong;
       }
       break;
+    case 'U':
+      ++I;
+      if (I + 1 != E && I + 2 != E) {
+        if (I[1] == '1' && I[2] == '6') {
+          I += 3;
+          lmKind = LengthModifier::AsShort;
+          break;
+        } else if (I[1] == '3' && I[2] == '3') {
+          I += 3;
+          lmKind = LengthModifier::AsInt32;
+          break;
+        }
+      }
     case 'j': lmKind = LengthModifier::AsIntMax;     ++I; break;
     case 'z': lmKind = LengthModifier::AsSizeT;      ++I; break;
     case 't': lmKind = LengthModifier::AsPtrDiff;    ++I; break;

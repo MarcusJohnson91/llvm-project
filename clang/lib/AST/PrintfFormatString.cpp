@@ -634,6 +634,20 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       }
       if (LM.getKind() == LengthModifier::AsWide)
         return ArgType(ArgType::WCStrTy, "wchar_t *");
+      if (LM.getKind() == LengthModifier::AsUnicode16) {
+        if (!LO.IsC++) {
+          return ArgType(ArgType::UC16StrTy, "char16_t *");
+        } else {
+          // TODO: Issue a FixIt, C++ means char16_t is BuiltIn, and the length mofifier is unnessessary
+        }
+      }
+      if (LM.getKind() == LengthModifier::AsUnicode32) {
+        if (!LO.IsC++) {
+          return ArgType(ArgType::UC32StrTy, "char32_t *");
+        } else {
+          // TODO: Issue a FixIt, C++ means char32_t is BuiltIn, and the length mofifier is unnessessary
+        }
+      }
       return ArgType::CStrTy;
     case ConversionSpecifier::SArg:
       if (IsObjCLiteral)
@@ -706,7 +720,7 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
     return true;
   }
 
-  // Handle strings next (char *, wchar_t *)
+  // Handle builtin strings next (char *, wchar_t *)
   if (QT->isPointerType() && (QT->getPointeeType()->isAnyCharacterType())) {
     CS.setKind(ConversionSpecifier::sArg);
 
@@ -716,6 +730,22 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
 
     // Set the long length modifier for wide characters
     if (QT->getPointeeType()->isWideCharType())
+      LM.setKind(LengthModifier::AsWideChar);
+    else
+      LM.setKind(LengthModifier::None);
+
+    return true;
+  }
+    
+  if (QT->isPointerType() && QT->getPointeeType()->isTypedefNameType()) { // Handle C typedef strings, char16_t, char32_t, etc
+    CS.setKind(ConversionSpecifier::sArg);
+
+    // Disable irrelevant flags
+    HasAlternativeForm = 0;
+    HasLeadingZeroes = 0;
+
+    // Set the long length modifier for wide characters
+    if (QT->getPointeeType()->isChar16Type() || QT->getPointeeType()->isChar32Type())
       LM.setKind(LengthModifier::AsWideChar);
     else
       LM.setKind(LengthModifier::None);

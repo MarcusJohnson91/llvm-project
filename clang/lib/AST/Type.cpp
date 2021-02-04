@@ -1999,14 +1999,13 @@ bool Type::isAnyCharacterType() const {
 }
 
 /// Gets if a type is a C specific typedef, like wchar_t, char16_t, char32_t
+/*
 bool Type::isTypedefCharacterType(const ASTContext &AST) const {
   bool  IsCharacterTypedef = false;
   auto  FormatType         = dyn_cast<QualType>(CanonicalType)->getUnqualifiedType();
   //LangOptions &LO = QT->getInterface()->getASTContext->getLangOpts();
 
-  /*
-   LangOptions is irrelevent, just loop over the type of the argument and drill down through the typedefs stopping when it reaches wchar_t, char8_t, char16_t, char32_t, or it's the Canonical type
-   */
+   // LangOptions is irrelevent, just loop over the type of the argument and drill down through the typedefs stopping when it reaches wchar_t, char8_t, char16_t, char32_t, or it's the Canonical type
 
   while (!dyn_cast<QualType>(FormatType)->isCanonical()) { // Loop over typedefs
                                     // Now we need a way to get the name of the type, and if it's not one of the typedef types (wchar_t, char8_t, char16_t, char32_t), to repeat the process
@@ -2026,23 +2025,23 @@ bool Type::isTypedefCharacterType(const ASTContext &AST) const {
       break;
     }
 
-    /*
-     QualType clang::QualType::getSingleStepDesugaredType  (  const ASTContext &   Context  )  const
+    
+    // QualType clang::QualType::getSingleStepDesugaredType  (  const ASTContext &   Context  )  const
      inline
-     Return the specified type with one level of "sugar" removed from the type.
+     // Return the specified type with one level of "sugar" removed from the type.
 
-     This routine takes off the first typedef, typeof, etc. If the outer level of the type is already concrete, it returns it unmodified.
+    // This routine takes off the first typedef, typeof, etc. If the outer level of the type is already concrete, it returns it unmodified.
 
-     So, if it has any number of Pointer or References it still counts so we'll need to treat Pointer types differently
+     // So, if it has any number of Pointer or References it still counts so we'll need to treat Pointer types differently
 
-     It must be a pointer type in order for format arguments to work anyway so this isn't a big deal?
+     // It must be a pointer type in order for format arguments to work anyway so this isn't a big deal?
 
-     We need to modify the type so we can remove the levels of "sugar" so we'll have to do that
-     */
+     // We need to modify the type so we can remove the levels of "sugar" so we'll have to do that
 
   }
   return IsCharacterTypedef;
 }
+ */
 
 /// isSignedIntegerType - Return true if this is an integer type that is
 /// signed, according to C99 6.2.5p4 [char, signed char, short, int, long..],

@@ -82,6 +82,8 @@ public:
     AsMAllocate,  // for '%ms', GNU extension to scanf
     AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
+    AsUnicode16, // 'U16'
+    AsUnicode32, // 'U32'
   };
 
   LengthModifier()
@@ -249,7 +251,7 @@ protected:
 class ArgType {
 public:
   enum Kind { UnknownTy, InvalidTy, SpecificTy, ObjCPointerTy, CPointerTy,
-              AnyCharTy, CStrTy, WCStrTy, WIntTy };
+              AnyCharTy, CStrTy, WCStrTy, WIntTy, UC16StrTy, UC32StrTy };
 
   /// How well a given conversion specifier matches its argument.
   enum MatchKind {

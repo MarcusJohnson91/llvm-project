@@ -3317,23 +3317,23 @@ static void handleFormatArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
 
   // Make sure the format string is really a string.
   QualType Ty = getFunctionOrMethodParamType(D, Idx.getASTIndex());
-  std::cout << "isTypedefCharacterType: " << Ty->getTypePtrUnsafe()->getPointeeOrArrayElementType()->isTypedefCharacterType(getASTContext()) << std::endl;
+  //std::cout << "isTypedefCharacterType: " << Ty->getTypePtrUnsafe()->getPointeeOrArrayElementType()->isTypedefCharacterType(getASTContext()) << std::endl;
   // ^Was: Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType()
 
   bool NotNSStringTy = !isNSStringType(Ty, S.Context);
   if (NotNSStringTy &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() && !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())))) {
-    S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
-    << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, Idx.getASTIndex());
+       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() ) ) ) { // !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext()
+    //S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
+    //<< IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, Idx.getASTIndex());
     return;
   }
   Ty = getFunctionOrMethodResultType(D);
   if (!isNSStringType(Ty, S.Context) &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() && !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())))) {
+       (!Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType()))) { // !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext()
     S.Diag(AL.getLoc(), diag::err_format_attribute_result_not)
         << (NotNSStringTy ? "string type" : "NSString")
         << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, 0);
@@ -3519,21 +3519,24 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
         << getFunctionOrMethodParamRange(D, ArgIdx);
       return;
     }
-  } else if (!Ty->isPointerType() ||
+  }
+  /*
+  else if (!Ty->isPointerType() ||
               !Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType() ||
               LangOptions() != C11
-              !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext())
+               !Ty->castAs<PointerType>()->getPointeeType()->isTypedefCharacterType(getASTContext()
               )
              ) {
-               /*
+               
                 Maybe I should just add a function specific for this that does all the LangOpts checking, and typedef checks, and all that?
 
                 isTypedefCharacterType could be the name of the function?
-                */
-    S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
-    << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, ArgIdx);
+                
+    //S.Diag(AL.getLoc(), diag::err_format_argument_not_string)
+    //<< IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, ArgIdx);
     return;
   }
+   */
 
   // check the 3rd argument
   Expr *FirstArgExpr = AL.getArgAsExpr(2);
