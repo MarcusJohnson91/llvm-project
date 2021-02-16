@@ -418,7 +418,7 @@ public:
              1 /* null byte always written by sprintf */) {}
 
   bool HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier &FS,
-                             const char *, unsigned SpecifierLen) override {
+                             const unsigned StartSpecifier, unsigned SpecifierLen) override {
 
     const size_t FieldWidth = computeFieldWidth(FS);
     const size_t Precision = computePrecision(FS);
@@ -625,6 +625,7 @@ void Sema::checkFortifiedBuiltinMemoryFunction(FunctionDecl *FD,
         return;
 
       StringRef FormatStrRef = Format->getString();
+      clang::StringLiteral::StringKind Kind = Format->getKind();
       EstimateSizeFormatHandler H(FormatStrRef);
       const char *FormatBytes = FormatStrRef.data();
       const ConstantArrayType *T =
@@ -636,7 +637,7 @@ void Sema::checkFortifiedBuiltinMemoryFunction(FunctionDecl *FD,
       size_t StrLen =
           std::min(std::max(TypeSize, size_t(1)) - 1, FormatStrRef.find(0));
       if (!analyze_format_string::ParsePrintfString(
-              H, FormatBytes, FormatBytes + StrLen, getLangOpts(),
+              H, FormatBytes, FormatBytes + StrLen, Kind, getLangOpts(),
               Context.getTargetInfo(), false)) {
         DiagID = diag::warn_fortify_source_format_overflow;
         UsedSize = llvm::APSInt::getUnsigned(H.getSizeLowerBound())
@@ -6999,59 +7000,7 @@ static void sumOffsets(llvm::APSInt &Offset, llvm::APSInt Addend,
   Offset = ResOffset;
 }
 
-namespace {
-
-// This is a wrapper class around StringLiteral to support offsetted string
-// literals as format strings. It takes the offset into account when returning
-// the string and its length or the source locations to display notes correctly.
-class FormatStringLiteral {
-  const StringLiteral *FExpr;
-  int64_t Offset;
-
- public:
-  FormatStringLiteral(const StringLiteral *fexpr, int64_t Offset = 0)
-      : FExpr(fexpr), Offset(Offset) {}
-
-  StringRef getString() const {
-    return FExpr->getString().drop_front(Offset);
-  }
-
-  unsigned getByteLength() const {
-    return FExpr->getByteLength() - getCharByteWidth() * Offset;
-  }
-
-  unsigned getLength() const { return FExpr->getLength() - Offset; }
-  unsigned getCharByteWidth() const { return FExpr->getCharByteWidth(); }
-
-  StringLiteral::StringKind getKind() const { return FExpr->getKind(); }
-
-  QualType getType() const { return FExpr->getType(); }
-
-  bool isAscii() const { return FExpr->isAscii(); }
-  bool isWide() const { return FExpr->isWide(); }
-  bool isUTF8() const { return FExpr->isUTF8(); }
-  bool isUTF16() const { return FExpr->isUTF16(); }
-  bool isUTF32() const { return FExpr->isUTF32(); }
-  bool isPascal() const { return FExpr->isPascal(); }
-
-  SourceLocation getLocationOfByte(
-      unsigned ByteNo, const SourceManager &SM, const LangOptions &Features,
-      const TargetInfo &Target, unsigned *StartToken = nullptr,
-      unsigned *StartTokenByteOffset = nullptr) const {
-    return FExpr->getLocationOfByte(ByteNo + Offset, SM, Features, Target,
-                                    StartToken, StartTokenByteOffset);
-  }
-
-  SourceLocation getBeginLoc() const LLVM_READONLY {
-    return FExpr->getBeginLoc().getLocWithOffset(Offset);
-  }
-
-  SourceLocation getEndLoc() const LLVM_READONLY { return FExpr->getEndLoc(); }
-};
-
-}  // namespace
-
-static void CheckFormatString(Sema &S, const FormatStringLiteral *FExpr,
+static void CheckFormatString(Sema &S, const clang::analyze_format_string::FormatStringLiteral *FExpr,
                               const Expr *OrigFormatExpr,
                               ArrayRef<const Expr *> Args,
                               bool HasVAListArg, unsigned format_idx,
@@ -7311,7 +7260,7 @@ checkFormatStringExpr(Sema &S, const Expr *E, ArrayRef<const Expr *> Args,
         // bounds literals.
         return SLCT_NotALiteral;
       }
-      FormatStringLiteral FStr(StrE, Offset.sextOrTrunc(64).getSExtValue());
+      clang::analyze_format_string::FormatStringLiteral FStr(StrE, Offset.sextOrTrunc(64).getSExtValue());
       CheckFormatString(S, &FStr, E, Args, HasVAListArg, format_idx,
                         firstDataArg, Type, InFunctionCall, CallType,
                         CheckedVarArgs, UncoveredArg,
@@ -7500,7 +7449,7 @@ protected:
   const Sema::FormatStringType FSType;
   const unsigned FirstDataArg;
   const unsigned NumDataArgs;
-  const char *Beg; // Start of format string.
+  const unsigned Start; // Start of format string, previously parameter beg
   const bool HasVAListArg;
   ArrayRef<const Expr *> Args;
   unsigned FormatIdx;
@@ -7513,16 +7462,16 @@ protected:
   UncoveredArgHandler &UncoveredArg;
 
 public:
-  CheckFormatHandler(Sema &s, const FormatStringLiteral *fexpr,
+  CheckFormatHandler(Sema &s, const clang::analyze_format_string::FormatStringLiteral *fexpr,
                      const Expr *origFormatExpr,
                      const Sema::FormatStringType type, unsigned firstDataArg,
-                     unsigned numDataArgs, const char *beg, bool hasVAListArg,
+                     unsigned numDataArgs, const unsigned start, bool hasVAListArg,
                      ArrayRef<const Expr *> Args, unsigned formatIdx,
                      bool inFunctionCall, Sema::VariadicCallType callType,
                      llvm::SmallBitVector &CheckedVarArgs,
                      UncoveredArgHandler &UncoveredArg)
       : S(s), FExpr(fexpr), OrigFormatExpr(origFormatExpr), FSType(type),
-        FirstDataArg(firstDataArg), NumDataArgs(numDataArgs), Beg(beg),
+        FirstDataArg(firstDataArg), NumDataArgs(numDataArgs), Start(start),
         HasVAListArg(hasVAListArg), Args(Args), FormatIdx(formatIdx),
         inFunctionCall(inFunctionCall), CallType(callType),
         CheckedVarArgs(CheckedVarArgs), UncoveredArg(UncoveredArg) {
@@ -7601,7 +7550,7 @@ SourceRange CheckFormatHandler::getFormatStringRange() {
 }
 
 CharSourceRange CheckFormatHandler::
-getSpecifierRange(const char *startSpecifier, unsigned specifierLen) {
+getSpecifierRange(const unsigned startSpecifier, unsigned specifierLen) {
   SourceLocation Start = getLocationOfByte(startSpecifier);
   SourceLocation End   = getLocationOfByte(startSpecifier + specifierLen - 1);
 
@@ -7611,7 +7560,7 @@ getSpecifierRange(const char *startSpecifier, unsigned specifierLen) {
   return CharSourceRange::getCharRange(Start, End);
 }
 
-SourceLocation CheckFormatHandler::getLocationOfByte(const char *x) {
+SourceLocation CheckFormatHandler::getLocationOfByte(const unsigned x) {
   return FExpr->getLocationOfByte(x - Beg, S.getSourceManager(),
                                   S.getLangOpts(), S.Context.getTargetInfo());
 }
@@ -7951,7 +7900,7 @@ namespace {
 
 class CheckPrintfHandler : public CheckFormatHandler {
 public:
-  CheckPrintfHandler(Sema &s, const FormatStringLiteral *fexpr,
+  CheckPrintfHandler(Sema &s, const clang::analyze_format_string::FormatStringLiteral *fexpr,
                      const Expr *origFormatExpr,
                      const Sema::FormatStringType type, unsigned firstDataArg,
                      unsigned numDataArgs, bool isObjC, const char *beg,
@@ -7981,7 +7930,7 @@ public:
   void handleInvalidMaskType(StringRef MaskType) override;
 
   bool HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier &FS,
-                             const char *startSpecifier,
+                             const unsigned startSpecifier,
                              unsigned specifierLen) override;
   bool checkFormatExpr(const analyze_printf::PrintfSpecifier &FS,
                        const char *StartSpecifier,
@@ -8244,7 +8193,7 @@ bool CheckPrintfHandler::checkForCStrMembers(
 bool
 CheckPrintfHandler::HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier
                                             &FS,
-                                          const char *startSpecifier,
+                                          const unsigned startSpecifier,
                                           unsigned specifierLen) {
   using namespace analyze_format_string;
   using namespace analyze_printf;
@@ -8865,7 +8814,7 @@ namespace {
 
 class CheckScanfHandler : public CheckFormatHandler {
 public:
-  CheckScanfHandler(Sema &s, const FormatStringLiteral *fexpr,
+  CheckScanfHandler(Sema &s, const clang::analyze_format_string::FormatStringLiteral *fexpr,
                     const Expr *origFormatExpr, Sema::FormatStringType type,
                     unsigned firstDataArg, unsigned numDataArgs,
                     const char *beg, bool hasVAListArg,
@@ -8914,7 +8863,7 @@ bool CheckScanfHandler::HandleInvalidScanfConversionSpecifier(
 
 bool CheckScanfHandler::HandleScanfSpecifier(
                                        const analyze_scanf::ScanfSpecifier &FS,
-                                       const char *startSpecifier,
+                                       const unsigned startSpecifier,
                                        unsigned specifierLen) {
   using namespace analyze_scanf;
   using namespace analyze_format_string;
@@ -9035,7 +8984,7 @@ bool CheckScanfHandler::HandleScanfSpecifier(
   return true;
 }
 
-static void CheckFormatString(Sema &S, const FormatStringLiteral *FExpr,
+static void CheckFormatString(Sema &S, const clang::analyze_format_string::FormatStringLiteral *FExpr,
                               const Expr *OrigFormatExpr,
                               ArrayRef<const Expr *> Args,
                               bool HasVAListArg, unsigned format_idx,
@@ -9046,46 +8995,6 @@ static void CheckFormatString(Sema &S, const FormatStringLiteral *FExpr,
                               llvm::SmallBitVector &CheckedVarArgs,
                               UncoveredArgHandler &UncoveredArg,
                               bool IgnoreStringsWithoutSpecifiers) {
-  // CHECK: is the format string a wide literal?
-  /*
-   FExpr->getKind returns enum StringKind
-   But we need to try to get the actual type
-   What about FExpr->getCharByteWidth(), which should return 1, 2, or 4
-   
-   Then maybe we can get the Expr->size and if they match we're good? it's kinda hacky but whateve
-   theres a Expr->getKind()
-   
-   What is ExprValueKind.getValueKind()?
-   
-   findBoundMemberType
-   */
-  int ParameterSize               = FExpr->getCharByteWidth();
-  QualType LiteralType            = OrigFormatExpr->getType(); // ->getCanonicalType()
-                                                               //printf("ERROR: %s: ParameterSize: %u, LiteralType: %s\n", __PRETTY_FUNCTION__, ParameterSize, LiteralType.getAsString().c_str());
-                                                               //const QualType LiteralCanonical = LiteralType->getCanonicalType();
-  
-  
-  //const StringLiteral *Param    = FExpr->FExpr;
-  //int StringLiteralSize         = Param->getCharByteWidth();
-  //QualType ParamType            = Param->getCanonicalType();
-  //QualType ParameterType = OrigFormatExpr->castAs<StringLiteral>()->getCanonicalType();
-  //QualType LiteralType   = FExpr->getType()->getCanonicalType();
-  /*
-   QualType StringLiteralType = FExpr->getCanonicalType(); // getType
-   QualType FormatExprType    = OrigFormatExpr->getCanonicalType(); // getType
-   */
-  /*
-  if (ParameterSize != LiteralType) {
-    CheckFormatHandler::EmitFormatDiagnostic(
-                                             S, inFunctionCall, Args[format_idx],
-                                             S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
-                                             /*IsStringLocation true, OrigFormatExpr->getSourceRange());
-    S, inFunctionCall, Args[format_idx],
-    S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
-    //IsStringLocation true, OrigFormatExpr->getSourceRange());
-    return;
-  }
-   */
 
   // Str - The format string.  NOTE: this is NOT null-terminated!
   StringRef StrRef = FExpr->getString();
@@ -9159,7 +9068,7 @@ bool Sema::FormatStringHasSArg(const StringLiteral *FExpr) {
   assert(T && "String literal not of constant array type!");
   size_t TypeSize = T->getSize().getZExtValue();
   size_t StrLen = std::min(std::max(TypeSize, size_t(1)) - 1, StrRef.size());
-  return analyze_format_string::ParseFormatStringHasSArg(Str, Str + StrLen,
+  return analyze_format_string::ParseFormatStringHasSArg(Str, Str + StrLen, FExpr->getKind(),
                                                          getLangOpts(),
                                                          Context.getTargetInfo());
 }

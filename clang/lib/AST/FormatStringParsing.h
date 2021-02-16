@@ -37,52 +37,52 @@ public:
 
 namespace analyze_format_string {
 
-OptionalAmount ParseAmount(const char *&Beg, const char *E);
-OptionalAmount ParseNonPositionAmount(const char *&Beg, const char *E,
+OptionalAmount ParseAmount(FormatStringLiteral &FSL, const unsigned Beg, const unsigned End);
+OptionalAmount ParseNonPositionAmount(FormatStringLiteral &FSL, const unsigned Beg, const unsigned End,
                                       unsigned &argIndex);
 
-OptionalAmount ParsePositionAmount(FormatStringHandler &H,
-                                   const char *Start, const char *&Beg,
-                                   const char *E, PositionContext p);
+OptionalAmount ParsePositionAmount(FormatStringHandler &H, FormatStringLiteral &FSL,
+                                   const unsigned Start, const unsigned Beg,
+                                   const unsigned End, PositionContext p);
 
 bool ParseFieldWidth(FormatStringHandler &H,
                      FormatSpecifier &CS,
-                     const char *Start, const char *&Beg, const char *E,
+                     const unsigned Start, const unsigned Beg, const unsigned End,
                      unsigned *argIndex);
 
 bool ParseArgPosition(FormatStringHandler &H,
-                      FormatSpecifier &CS, const char *Start,
-                      const char *&Beg, const char *E);
+                      FormatSpecifier &CS, const unsigned Start,
+                      const unsigned Beg, const unsigned End);
 
 bool ParseVectorModifier(FormatStringHandler &H,
-                         FormatSpecifier &FS, const char *&Beg, const char *E,
+                         FormatSpecifier &FS, const unsigned Beg, const unsigned End,
                          const LangOptions &LO);
 
 /// Returns true if a LengthModifier was parsed and installed in the
 /// FormatSpecifier& argument, and false otherwise.
-bool ParseLengthModifier(FormatSpecifier &FS, const char *&Beg, const char *E,
+bool ParseLengthModifier(FormatSpecifier &FS, const unsigned Beg, const unsigned End,
                          const LangOptions &LO, bool IsScanf = false);
 
 /// Returns true if the invalid specifier in \p SpecifierBegin is a UTF-8
 /// string; check that it won't go further than \p FmtStrEnd and write
 /// up the total size in \p Len.
-bool ParseUTF8InvalidSpecifier(const char *SpecifierBegin,
-                               const char *FmtStrEnd, unsigned &Len);
+bool ParseUTF8InvalidSpecifier(const unsigned SpecifierBegin,
+                               const unsigned FmtStrEnd, unsigned &Len);
 
 template <typename T> class SpecifierResult {
   T FS;
-  const char *Start;
+  const unsigned Start;
   bool Stop;
 public:
   SpecifierResult(bool stop = false)
-  : Start(nullptr), Stop(stop) {}
-  SpecifierResult(const char *start,
+  : Start(0), Stop(stop) {}
+  SpecifierResult(const unsigned start,
                   const T &fs)
   : FS(fs), Start(start), Stop(false) {}
 
-  const char *getStart() const { return Start; }
+  unsigned getStart() const { return Start; }
   bool shouldStop() const { return Stop; }
-  bool hasValue() const { return Start != nullptr; }
+  bool hasValue() const { return Start != 0; }
   const T &getValue() const {
     assert(hasValue());
     return FS;

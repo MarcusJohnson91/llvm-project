@@ -19,6 +19,7 @@
 #define LLVM_CLANG_ANALYSIS_ANALYSES_FORMATSTRING_H
 
 #include "clang/AST/CanonicalType.h"
+#include "clang/AST/Expr.h"
 
 namespace clang {
 
@@ -81,7 +82,7 @@ public:
     AsAllocate,   // for '%as', GNU extension to C90 scanf
     AsMAllocate,  // for '%ms', GNU extension to scanf
     AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
-    AsWideChar = AsLong // for '%ls', only makes sense for printf
+    AsWideChar = AsLong, // for '%ls', only makes sense for printf
     AsUnicode16, // 'U16'
     AsUnicode32, // 'U32'
   };
@@ -330,18 +331,18 @@ public:
 
   OptionalAmount(HowSpecified howSpecified,
                  unsigned amount,
-                 const char *amountStart,
+                 const unsigned amountStart,
                  unsigned amountLength,
                  bool usesPositionalArg)
   : start(amountStart), length(amountLength), hs(howSpecified), amt(amount),
   UsesPositionalArg(usesPositionalArg), UsesDotPrefix(0) {}
 
   OptionalAmount(bool valid = true)
-  : start(nullptr),length(0), hs(valid ? NotSpecified : Invalid), amt(0),
+  : start(0),length(0), hs(valid ? NotSpecified : Invalid), amt(0),
   UsesPositionalArg(0), UsesDotPrefix(0) {}
 
   explicit OptionalAmount(unsigned Amount)
-    : start(nullptr), length(0), hs(Constant), amt(Amount),
+    : start(0), length(0), hs(Constant), amt(Amount),
     UsesPositionalArg(false), UsesDotPrefix(false) {}
 
   bool isInvalid() const {
@@ -387,7 +388,7 @@ public:
   void setUsesDotPrefix() { UsesDotPrefix = true; }
 
 private:
-  const char *start;
+  const unsigned start;
   unsigned length;
   HowSpecified hs;
   unsigned amt;
@@ -696,38 +697,38 @@ public:
   FormatStringHandler() {}
   virtual ~FormatStringHandler();
 
-  virtual void HandleNullChar(const char *nullCharacter) {}
+  virtual void HandleNullChar(const unsigned nullCharacter) {}
 
-  virtual void HandlePosition(const char *startPos, unsigned posLen) {}
+  virtual void HandlePosition(const unsigned startPos, unsigned posLen) {}
 
-  virtual void HandleInvalidPosition(const char *startPos, unsigned posLen,
+  virtual void HandleInvalidPosition(const unsigned startPos, unsigned posLen,
                                      PositionContext p) {}
 
-  virtual void HandleZeroPosition(const char *startPos, unsigned posLen) {}
+  virtual void HandleZeroPosition(const unsigned startPos, unsigned posLen) {}
 
-  virtual void HandleIncompleteSpecifier(const char *startSpecifier,
+  virtual void HandleIncompleteSpecifier(const unsigned startSpecifier,
                                          unsigned specifierLen) {}
 
-  virtual void HandleEmptyObjCModifierFlag(const char *startFlags,
+  virtual void HandleEmptyObjCModifierFlag(const unsigned startFlags,
                                            unsigned flagsLen) {}
 
-  virtual void HandleInvalidObjCModifierFlag(const char *startFlag,
+  virtual void HandleInvalidObjCModifierFlag(const unsigned startFlag,
                                              unsigned flagLen) {}
 
-  virtual void HandleObjCFlagsWithNonObjCConversion(const char *flagsStart,
-                                            const char *flagsEnd,
+  virtual void HandleObjCFlagsWithNonObjCConversion(const unsigned flagsStart,
+                                            const unsigned flagsEnd,
                                             const char *conversionPosition) {}
   // Printf-specific handlers.
 
   virtual bool HandleInvalidPrintfConversionSpecifier(
                                       const analyze_printf::PrintfSpecifier &FS,
-                                      const char *startSpecifier,
+                                      const unsigned startSpecifier,
                                       unsigned specifierLen) {
     return true;
   }
 
   virtual bool HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier &FS,
-                                     const char *startSpecifier,
+                                     const unsigned startSpecifier,
                                      unsigned specifierLen) {
     return true;
   }
@@ -750,23 +751,75 @@ public:
     return true;
   }
 
-  virtual void HandleIncompleteScanList(const char *start, const char *end) {}
+  virtual void HandleIncompleteScanList(const unsigned start, const unsigned end) {}
+};
+// This is a wrapper class around StringLiteral to support offsetted string
+// literals as format strings. It takes the offset into account when returning
+// the string and its length or the source locations to display notes correctly.
+class FormatStringLiteral {
+  const StringLiteral *FExpr;
+  int64_t Offset;
+  
+public:
+  FormatStringLiteral(const StringLiteral *fexpr, int64_t Offset = 0)
+  : FExpr(fexpr), Offset(Offset) {}
+  
+  StringRef getString() const {
+    return FExpr->getString().drop_front(Offset);
+  }
+  
+  StringLiteral &getStringLiteral() const {
+    return FExpr;
+  }
+  
+  unsigned getByteLength() const {
+    return FExpr->getByteLength() - getCharByteWidth() * Offset;
+  }
+  
+  unsigned getLength() const { return FExpr->getLength() - Offset; }
+  unsigned getCharByteWidth() const { return FExpr->getCharByteWidth(); }
+  
+  StringLiteral::StringKind getKind() const { return FExpr->getKind(); }
+  
+  QualType getType() const { return FExpr->getType(); }
+  
+  bool isAscii() const { return FExpr->isAscii(); }
+  bool isWide() const { return FExpr->isWide(); }
+  bool isUTF8() const { return FExpr->isUTF8(); }
+  bool isUTF16() const { return FExpr->isUTF16(); }
+  bool isUTF32() const { return FExpr->isUTF32(); }
+  bool isPascal() const { return FExpr->isPascal(); }
+  
+  SourceLocation getLocationOfByte(
+                                   unsigned ByteNo, const SourceManager &SM, const LangOptions &Features,
+                                   const TargetInfo &Target, unsigned *StartToken = nullptr,
+                                   unsigned *StartTokenByteOffset = nullptr) const {
+    return FExpr->getLocationOfByte(ByteNo + Offset, SM, Features, Target,
+                                    StartToken, StartTokenByteOffset);
+  }
+  
+  SourceLocation getBeginLoc() const LLVM_READONLY {
+    return FExpr->getBeginLoc().getLocWithOffset(Offset);
+  }
+  
+  SourceLocation getEndLoc() const LLVM_READONLY { return FExpr->getEndLoc(); }
 };
 
 bool ParsePrintfString(FormatStringHandler &H,
-                       const char *beg, const char *end, const LangOptions &LO,
+                       const unsigned beg, const unsigned end, FormatStringLiteral &FSL, const LangOptions &LO,
                        const TargetInfo &Target, bool isFreeBSDKPrintf);
 
-bool ParseFormatStringHasSArg(const char *beg, const char *end,
+bool ParseFormatStringHasSArg(const unsigned beg, const unsigned end, FormatStringLiteral &FSL,
                               const LangOptions &LO, const TargetInfo &Target);
 
-bool ParseScanfString(FormatStringHandler &H,
-                      const char *beg, const char *end, const LangOptions &LO,
+bool ParseScanfString(FormatStringHandler &H, FormatStringLiteral &FSL,
+                      const unsigned beg, const unsigned end, const LangOptions &LO,
                       const TargetInfo &Target);
 
 /// Return true if the given string has at least one formatting specifier.
 bool parseFormatStringHasFormattingSpecifiers(const char *Begin,
                                               const char *End,
+                                              FormatStringLiteral &FSL,
                                               const LangOptions &LO,
                                               const TargetInfo &Target);
 

@@ -56,7 +56,7 @@ public:
   }
 
   bool HandlePrintfSpecifier(const analyze_printf::PrintfSpecifier &FS,
-                             const char *StartSpecifier,
+                             const unsigned StartSpecifier,
                              unsigned SpecifierLen) override {
     if (!FS.consumesDataArgument() &&
         FS.getConversionSpecifier().getKind() !=
@@ -204,7 +204,7 @@ bool clang::analyze_os_log::computeOSLogBufferLayout(
   assert(Lit && (Lit->isAscii() || Lit->isUTF8()));
   StringRef Data = Lit->getString();
   OSLogFormatStringHandler H(VarArgs);
-  ParsePrintfString(H, Data.begin(), Data.end(), Ctx.getLangOpts(),
+  ParsePrintfString(H, Data.begin(), Data.end(), Lit->getKind(), Ctx.getLangOpts(),
                     Ctx.getTargetInfo(), /*isFreeBSDKPrintf*/ false);
 
   H.computeLayout(Ctx, Layout);

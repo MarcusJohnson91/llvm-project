@@ -34,15 +34,15 @@ FormatStringHandler::~FormatStringHandler() {}
 //===----------------------------------------------------------------------===//
 
 OptionalAmount
-clang::analyze_format_string::ParseAmount(const char *&Beg, const char *E) {
-  const char *I = Beg;
-  UpdateOnReturn <const char*> UpdateBeg(Beg, I);
+clang::analyze_format_string::ParseAmount(FormatStringLiteral &FSL, const unsigned Beg, const unsigned End) {
+  unsigned I = Beg;
+  UpdateOnReturn <const unsigned> UpdateBeg(Beg, I);
 
   unsigned accumulator = 0;
   bool hasDigits = false;
 
-  for ( ; I != E; ++I) {
-    char c = *I;
+  for ( ; I != End; ++I) {
+    char c = FSL.getStringLiteral().getCodeUnit(I);
     if (c >= '0' && c <= '9') {
       hasDigits = true;
       accumulator = (accumulator * 10) + (c - '0');
@@ -60,26 +60,28 @@ clang::analyze_format_string::ParseAmount(const char *&Beg, const char *E) {
 }
 
 OptionalAmount
-clang::analyze_format_string::ParseNonPositionAmount(const char *&Beg,
-                                                     const char *E,
+clang::analyze_format_string::ParseNonPositionAmount(FormatStringLiteral &FSL,
+                                                     unsigned Beg,
+                                                     unsigned End,
                                                      unsigned &argIndex) {
-  if (*Beg == '*') {
+  if (FSL.getStringLiteral().getCodeUnit(Beg) == '*') {
     ++Beg;
     return OptionalAmount(OptionalAmount::Arg, argIndex++, Beg, 0, false);
   }
 
-  return ParseAmount(Beg, E);
+  return ParseAmount(FSL, Beg, End);
 }
 
 OptionalAmount
 clang::analyze_format_string::ParsePositionAmount(FormatStringHandler &H,
-                                                  const char *Start,
+                                                  FormatStringLiteral &FSL,
+                                                  const unsigned *Start,
                                                   const char *&Beg,
                                                   const char *E,
                                                   PositionContext p) {
-  if (*Beg == '*') {
+  if ( *Beg == '*') {
     const char *I = Beg + 1;
-    const OptionalAmount &Amt = ParseAmount(I, E);
+    const OptionalAmount &Amt = ParseAmount(FSL, I, E);
 
     if (Amt.getHowSpecified() == OptionalAmount::NotSpecified) {
       H.HandleInvalidPosition(Beg, I - Beg, p);
@@ -114,23 +116,24 @@ clang::analyze_format_string::ParsePositionAmount(FormatStringHandler &H,
     return OptionalAmount(false);
   }
 
-  return ParseAmount(Beg, E);
+  return ParseAmount(FSL, Beg, E);
 }
 
 
 bool
 clang::analyze_format_string::ParseFieldWidth(FormatStringHandler &H,
+                                              FormatStringLiteral &FSL,
                                               FormatSpecifier &CS,
                                               const char *Start,
                                               const char *&Beg, const char *E,
                                               unsigned *argIndex) {
   // FIXME: Support negative field widths.
   if (argIndex) {
-    CS.setFieldWidth(ParseNonPositionAmount(Beg, E, *argIndex));
+    CS.setFieldWidth(ParseNonPositionAmount(FSL, Beg, E, *argIndex));
   }
   else {
     const OptionalAmount Amt =
-      ParsePositionAmount(H, Start, Beg, E,
+      ParsePositionAmount(H, FSL, Start, Beg, E,
                           analyze_format_string::FieldWidthPos);
 
     if (Amt.isInvalid())
@@ -148,7 +151,7 @@ clang::analyze_format_string::ParseArgPosition(FormatStringHandler &H,
                                                const char *E) {
   const char *I = Beg;
 
-  const OptionalAmount &Amt = ParseAmount(I, E);
+  const OptionalAmount &Amt = ParseAmount(FSL, I, E);
 
   if (I == E) {
     // No more characters left?
@@ -195,7 +198,7 @@ clang::analyze_format_string::ParseVectorModifier(FormatStringHandler &H,
       return true;
     }
 
-    OptionalAmount NumElts = ParseAmount(I, E);
+    OptionalAmount NumElts = ParseAmount(FSL, I, E);
     if (NumElts.getHowSpecified() != OptionalAmount::Constant) {
       H.HandleIncompleteSpecifier(Start, E - Start);
       return true;

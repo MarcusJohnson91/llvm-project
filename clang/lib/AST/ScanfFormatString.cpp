@@ -30,10 +30,12 @@ typedef clang::analyze_format_string::SpecifierResult<ScanfSpecifier>
 
 static bool ParseScanList(FormatStringHandler &H,
                           ScanfConversionSpecifier &CS,
-                          const char *&Beg, const char *E) {
-  const char *I = Beg;
-  const char *start = I - 1;
-  UpdateOnReturn <const char*> UpdateBeg(Beg, I);
+                          FormatStringLiteral &FSL,
+                          const unsigned Beg, const unsigned E) {
+  unsigned I = Beg;
+  const unsigned start = I - 1;
+  UpdateOnReturn <const unsigned> UpdateBeg(Beg, I);
+  
 
   // No more characters?
   if (I == E) {
@@ -42,15 +44,15 @@ static bool ParseScanList(FormatStringHandler &H,
   }
 
   // Special case: ']' is the first character.
-  if (*I == ']') {
-    if (++I == E) {
+  if (FSL.getStringLiteral().getCodeUnit(I) == ']') {
+    if (FSL.getStringLiteral().getCodeUnit(++I) == E) {
       H.HandleIncompleteScanList(start, I - 1);
       return true;
     }
   }
 
   // Special case: "^]" are the first characters.
-  if (I + 1 != E && I[0] == '^' && I[1] == ']') {
+  if (I + 1 != E && FSL.getStringLiteral().getCodeUnit(0) == '^' && FSL.getStringLiteral().getCodeUnit(1) == ']') { // Indexing like a string is a problem
     I += 2;
     if (I == E) {
       H.HandleIncompleteScanList(start, I - 1);
@@ -59,7 +61,7 @@ static bool ParseScanList(FormatStringHandler &H,
   }
 
   // Look for a ']' character which denotes the end of the scan list.
-  while (*I != ']') {
+  while (FSL.getStringLiteral().getCodeUnit(I) != ']') {
     if (++I == E) {
       H.HandleIncompleteScanList(start, I - 1);
       return true;
@@ -73,20 +75,22 @@ static bool ParseScanList(FormatStringHandler &H,
 // FIXME: Much of this is copy-paste from ParsePrintfSpecifier.
 // We can possibly refactor.
 static ScanfSpecifierResult ParseScanfSpecifier(FormatStringHandler &H,
-                                                const char *&Beg,
-                                                const char *E,
+                                                FormatStringLiteral &FSL,
+                                                const unsigned Beg,
+                                                const unsigned E,
                                                 unsigned &argIndex,
                                                 const LangOptions &LO,
                                                 const TargetInfo &Target) {
   using namespace clang::analyze_format_string;
   using namespace clang::analyze_scanf;
-  const char *I = Beg;
-  const char *Start = nullptr;
-  UpdateOnReturn <const char*> UpdateBeg(Beg, I);
+  
+  unsigned I = Beg;
+  unsigned Start = 0;
+  UpdateOnReturn <const unsigned> UpdateBeg(Beg, I);
 
     // Look for a '%' character that indicates the start of a format specifier.
   for ( ; I != E ; ++I) {
-    char c = *I;
+    uint32_t c = FSL.getStringLiteral().getCodeUnit(I);
     if (c == '\0') {
         // Detect spurious null characters, which are likely errors.
       H.HandleNullChar(I);
@@ -119,7 +123,7 @@ static ScanfSpecifierResult ParseScanfSpecifier(FormatStringHandler &H,
   }
 
   // Look for '*' flag if it is present.
-  if (*I == '*') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '*') {
     FS.setSuppressAssignment(I);
     if (++I == E) {
       H.HandleIncompleteSpecifier(Start, E - Start);
@@ -129,7 +133,7 @@ static ScanfSpecifierResult ParseScanfSpecifier(FormatStringHandler &H,
 
   // Look for the field width (if any).  Unlike printf, this is either
   // a fixed integer or isn't present.
-  const OptionalAmount &Amt = clang::analyze_format_string::ParseAmount(I, E);
+  const OptionalAmount &Amt = clang::analyze_format_string::ParseAmount(FSL, I, E);
   if (Amt.getHowSpecified() != OptionalAmount::NotSpecified) {
     assert(Amt.getHowSpecified() == OptionalAmount::Constant);
     FS.setFieldWidth(Amt);
@@ -149,15 +153,15 @@ static ScanfSpecifierResult ParseScanfSpecifier(FormatStringHandler &H,
   }
 
   // Detect spurious null characters, which are likely errors.
-  if (*I == '\0') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '\0') {
     H.HandleNullChar(I);
     return true;
   }
 
   // Finally, look for the conversion specifier.
-  const char *conversionPosition = I++;
+  const uint32_t conversionPosition = FSL.getStringLiteral().getCodeUnit(I++);
   ScanfConversionSpecifier::Kind k = ScanfConversionSpecifier::InvalidSpecifier;
-  switch (*conversionPosition) {
+  switch (conversionPosition) {
     default:
       break;
     case '%': k = ConversionSpecifier::PercentArg;   break;
@@ -537,8 +541,9 @@ void ScanfSpecifier::toString(raw_ostream &os) const {
 }
 
 bool clang::analyze_format_string::ParseScanfString(FormatStringHandler &H,
-                                                    const char *I,
-                                                    const char *E,
+                                                    FormatStringLiteral &FSL,
+                                                    const unsigned I,
+                                                    const unsigned E,
                                                     const LangOptions &LO,
                                                     const TargetInfo &Target) {
 
@@ -546,7 +551,7 @@ bool clang::analyze_format_string::ParseScanfString(FormatStringHandler &H,
 
   // Keep looking for a format specifier until we have exhausted the string.
   while (I != E) {
-    const ScanfSpecifierResult &FSR = ParseScanfSpecifier(H, I, E, argIndex,
+    const ScanfSpecifierResult &FSR = ParseScanfSpecifier(H, FSL, I, E, argIndex,
                                                           LO, Target);
     // Did a fail-stop error of any kind occur when parsing the specifier?
     // If so, don't do any more processing.

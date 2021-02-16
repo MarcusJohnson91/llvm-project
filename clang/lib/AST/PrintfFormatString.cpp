@@ -24,6 +24,7 @@ using clang::analyze_format_string::OptionalAmount;
 using clang::analyze_format_string::ConversionSpecifier;
 using clang::analyze_printf::PrintfSpecifier;
 
+
 using namespace clang;
 
 typedef clang::analyze_format_string::SpecifierResult<PrintfSpecifier>
@@ -35,13 +36,13 @@ typedef clang::analyze_format_string::SpecifierResult<PrintfSpecifier>
 
 using analyze_format_string::ParseNonPositionAmount;
 
-static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS,
-                           const char *Start, const char *&Beg, const char *E,
+static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS, clang::analyze_format_string::FormatStringLiteral &FSL,
+                           const unsigned Start, const unsigned Beg, const unsigned E,
                            unsigned *argIndex) {
   if (argIndex) {
-    FS.setPrecision(ParseNonPositionAmount(Beg, E, *argIndex));
+    FS.setPrecision(ParseNonPositionAmount(FSL, Beg, E, *argIndex));
   } else {
-    const OptionalAmount Amt = ParsePositionAmount(H, Start, Beg, E,
+    const OptionalAmount Amt = ParsePositionAmount(H, FSL, Start, Beg, E,
                                            analyze_format_string::PrecisionPos);
     if (Amt.isInvalid())
       return true;
@@ -51,7 +52,7 @@ static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS,
 }
 
 static bool ParseObjCFlags(FormatStringHandler &H, PrintfSpecifier &FS,
-                           const char *FlagBeg, const char *E, bool Warn) {
+                           const unsigned FlagBeg, const unsigned E, bool Warn) {
    StringRef Flag(FlagBeg, E - FlagBeg);
    // Currently there is only one flag.
    if (Flag == "tt") {
@@ -68,9 +69,10 @@ static bool ParseObjCFlags(FormatStringHandler &H, PrintfSpecifier &FS,
    return true;
 }
 
-static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
-                                                  const char *&Beg,
-                                                  const char *E,
+PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
+                                           FormatStringLiteral &FSL,
+                                                  const unsigned Beg,
+                                                  const unsigned E,
                                                   unsigned &argIndex,
                                                   const LangOptions &LO,
                                                   const TargetInfo &Target,
@@ -79,14 +81,15 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 
   using namespace clang::analyze_format_string;
   using namespace clang::analyze_printf;
-
-  const char *I = Beg;
-  const char *Start = nullptr;
-  UpdateOnReturn <const char*> UpdateBeg(Beg, I);
-
+  
+  unsigned I = Beg;
+  unsigned Start = 0;
+  UpdateOnReturn <const unsigned> UpdateBeg(Beg, I);
+  
   // Look for a '%' character that indicates the start of a format specifier.
-  for ( ; I != E ; ++I) {
-    char c = *I;
+  for ( ; I != E; ++I) {
+    uint32_t c = FSL.getStringLiteral().getCodeUnit(I);
+    
     if (c == '\0') {
       // Detect spurious null characters, which are likely errors.
       H.HandleNullChar(I);
@@ -120,7 +123,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     return true;
   }
 
-  if (*I == '{') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '{') {
     ++I;
     unsigned char PrivacyFlags = 0;
     StringRef MatchedStr;
@@ -168,7 +171,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
         I += CommaOrBracePos + 1;
       }
       // Continue until the closing brace is found.
-    } while (*(I - 1) == ',');
+    } while (I - 1 >= 0 && FSL.getStringLiteral().getCodeUnit(I - 1) == ',');
 
     // Set the privacy flag.
     switch (PrivacyFlags) {
@@ -191,7 +194,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   // Look for flags (if any).
   bool hasMore = true;
   for ( ; I != E; ++I) {
-    switch (*I) {
+    switch (FSL.getStringLiteral().getCodeUnit(I)) {
       default: hasMore = false; break;
       case '\'':
         // FIXME: POSIX specific.  Always accept?
@@ -227,7 +230,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   }
 
   // Look for the precision (if any).
-  if (*I == '.') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '.') {
     ++I;
     if (I == E) {
       if (Warn)
@@ -266,7 +269,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   // these flags are applicable until later.
   const char *ObjCModifierFlagsStart = nullptr,
              *ObjCModifierFlagsEnd = nullptr;
-  if (*I == '[') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '[') {
     ObjCModifierFlagsStart = I;
     ++I;
     auto flagStart = I;
@@ -278,7 +281,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
         return true;
       }
       // Did we find the closing ']'?
-      if (*I == ']') {
+      if (FSL.getStringLiteral().getCodeUnit(I) == ']') {
         if (ParseObjCFlags(H, FS, flagStart, I, Warn))
           return true;
         ++I;
@@ -290,16 +293,16 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     }
   }
 
-  if (*I == '\0') {
+  if (FSL.getStringLiteral().getCodeUnit(I) == '\0') {
     // Detect spurious null characters, which are likely errors.
-    H.HandleNullChar(I);
+    //H.HandleNullChar(I);
     return true;
   }
 
   // Finally, look for the conversion specifier.
-  const char *conversionPosition = I++;
+  const uint32_t conversionPosition = FSL.getStringLiteral().getCodeUnit(I++);
   ConversionSpecifier::Kind k = ConversionSpecifier::InvalidSpecifier;
-  switch (*conversionPosition) {
+  switch (conversionPosition) {
     default:
       break;
     // C99: 7.19.6.1 (section 8).
@@ -395,6 +398,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   if (k == ConversionSpecifier::InvalidSpecifier) {
     unsigned Len = I - Start;
     if (ParseUTF8InvalidSpecifier(Start, E, Len)) {
+      // TODO: Do we need to check if the String literal is UTF8? what is the purpose of this?
       CS.setEndScanList(Start + Len);
       FS.setConversionSpecifier(CS);
     }
@@ -405,8 +409,9 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 }
 
 bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
-                                                     const char *I,
-                                                     const char *E,
+                                                     const unsigned I,
+                                                     const unsigned E,
+                                                     FormatStringLiteral &FSL,
                                                      const LangOptions &LO,
                                                      const TargetInfo &Target,
                                                      bool isFreeBSDKPrintf) {
@@ -415,7 +420,7 @@ bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
 
   // Keep looking for a format specifier until we have exhausted the string.
   while (I != E) {
-    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, I, E, argIndex,
+    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, FSL, I, E, argIndex,
                                                             LO, Target, true,
                                                             isFreeBSDKPrintf);
     // Did a fail-stop error of any kind occur when parsing the specifier?
@@ -435,8 +440,9 @@ bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
   return false;
 }
 
-bool clang::analyze_format_string::ParseFormatStringHasSArg(const char *I,
-                                                            const char *E,
+bool clang::analyze_format_string::ParseFormatStringHasSArg(const unsigned I,
+                                                            const unsigned E,
+                                                            FormatStringLiteral &FSL,
                                                             const LangOptions &LO,
                                                             const TargetInfo &Target) {
 
@@ -445,7 +451,7 @@ bool clang::analyze_format_string::ParseFormatStringHasSArg(const char *I,
   // Keep looking for a %s format specifier until we have exhausted the string.
   FormatStringHandler H;
   while (I != E) {
-    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, I, E, argIndex,
+    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, FSL, I, E, argIndex,
                                                             LO, Target, false,
                                                             false);
     // Did a fail-stop error of any kind occur when parsing the specifier?
@@ -465,14 +471,17 @@ bool clang::analyze_format_string::ParseFormatStringHasSArg(const char *I,
 }
 
 bool clang::analyze_format_string::parseFormatStringHasFormattingSpecifiers(
-    const char *Begin, const char *End, const LangOptions &LO,
+    const unsigned Begin, const unsigned End, FormatStringLiteral &FSL, const LangOptions &LO,
     const TargetInfo &Target) {
+  /*
+   Why don't we just pass in the Literal, and maybe a Range, and then iterate from start to end?
+   */
   unsigned ArgIndex = 0;
   // Keep looking for a formatting specifier until we have exhausted the string.
   FormatStringHandler H;
   while (Begin != End) {
     const PrintfSpecifierResult &FSR =
-        ParsePrintfSpecifier(H, Begin, End, ArgIndex, LO, Target, false, false);
+        ParsePrintfSpecifier(H, FSL, Begin, End, ArgIndex, LO, Target, false, false);
     if (FSR.shouldStop())
       break;
     if (FSR.hasValue())
@@ -635,18 +644,16 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       if (LM.getKind() == LengthModifier::AsWide)
         return ArgType(ArgType::WCStrTy, "wchar_t *");
       if (LM.getKind() == LengthModifier::AsUnicode16) {
-        if (!LO.IsC++) {
+        if (!Ctx.getLangOpts().CPlusPlus) {
           return ArgType(ArgType::UC16StrTy, "char16_t *");
-        } else {
-          // TODO: Issue a FixIt, C++ means char16_t is BuiltIn, and the length mofifier is unnessessary
         }
+          // TODO: Otherwise, Issue a FixIt, C++ means char16_t is BuiltIn, and the length mofifier is unnessessary
       }
       if (LM.getKind() == LengthModifier::AsUnicode32) {
-        if (!LO.IsC++) {
+        if (!Ctx.getLangOpts().CPlusPlus) {
           return ArgType(ArgType::UC32StrTy, "char32_t *");
-        } else {
-          // TODO: Issue a FixIt, C++ means char32_t is BuiltIn, and the length mofifier is unnessessary
         }
+          // TODO: Otherwise,Issue a FixIt, C++ means char32_t is BuiltIn, and the length mofifier is unnessessary
       }
       return ArgType::CStrTy;
     case ConversionSpecifier::SArg:
