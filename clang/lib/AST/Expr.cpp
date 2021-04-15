@@ -35,6 +35,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ConvertUTF.h"
 #include <algorithm>
 #include <cstring>
 using namespace clang;
@@ -1044,6 +1045,48 @@ unsigned StringLiteral::mapCharByteWidth(TargetInfo const &Target,
   return CharByteWidth;
 }
 
+char *StringLiteral::getStrDataAsChar() {
+  std::string Output;
+  char *CString = nullptr;
+  
+  switch (getKind()) {
+    case StringKind::Ascii:
+      LLVM_FALLTHROUGH;
+    case StringKind::UTF8:
+      return getTrailingObjects<char>();
+      break;
+    case StringKind::UTF16: {
+      ArrayRef<char> AR(getTrailingObjects<char>(), getByteLength());
+      if (llvm::convertUTF16ToUTF8String(AR, Output)) {
+        CString = new char[Output.size() + 1]; // +1 for terminating NULL
+        return CString;
+      }
+      break;
+    }
+    case StringKind::UTF32: {
+      ArrayRef<char> AR(getTrailingObjects<char>(), getByteLength());
+      if (llvm::convertUTF32ToUTF8String(AR, Output)) {
+        CString = new char[Output.size() + 1];
+        memcpy(CString, Output.c_str(), Output.size());
+        return CString;
+      }
+      break;
+    }
+    case StringKind::Wide: {
+      if (llvm::convertWideToUTF8(getStringAsWChar(), Output)) {
+        CString = new char[Output.size() + 1];
+        memcpy(CString, Output.c_str(), Output.size());
+        return CString;
+      }
+      break;
+    }
+  }
+}
+
+const char *StringLiteral::getStrDataAsChar() const {
+  return const_cast<const char*>(getStrDataAsChar());
+}
+
 StringLiteral::StringLiteral(const ASTContext &Ctx, StringRef Str,
                              StringKind Kind, bool Pascal, QualType Ty,
                              const SourceLocation *Loc,
@@ -1235,7 +1278,6 @@ StringLiteral::getLocationOfByte(unsigned ByteNo, const SourceManager &SM,
   assert((getKind() == StringLiteral::Ordinary ||
           getKind() == StringLiteral::UTF8) &&
          "Only narrow string literals are currently supported");
-
   // Loop over all of the tokens in this string until we find the one that
   // contains the byte we're looking for.
   unsigned TokNo = 0;

@@ -1787,6 +1787,8 @@ class StringLiteral final
 
 public:
   enum StringKind { Ordinary, Wide, UTF8, UTF16, UTF32 };
+  char *getStrDataAsChar();
+  const char *getStrDataAsChar() const;
 
 private:
   unsigned numTrailingObjects(OverloadToken<unsigned>) const { return 1; }
@@ -1797,9 +1799,6 @@ private:
   unsigned numTrailingObjects(OverloadToken<char>) const {
     return getByteLength();
   }
-
-  char *getStrDataAsChar() { return getTrailingObjects<char>(); }
-  const char *getStrDataAsChar() const { return getTrailingObjects<char>(); }
 
   const uint16_t *getStrDataAsUInt16() const {
     return reinterpret_cast<const uint16_t *>(getTrailingObjects<char>());
@@ -1851,6 +1850,30 @@ public:
     assert(getCharByteWidth() == 1 &&
            "This function is used in places that assume strings use char");
     return StringRef(getStrDataAsChar(), getByteLength());
+  }
+                                      
+  std::string getStringAsChar() const {
+    assert(getCharByteWidth() == 1 &&
+           "This function is used in places that assume strings use char");
+    return std::string(getTrailingObjects<char>(), getTrailingObjects<char>() + getByteLength());
+  }
+                                  
+  std::u16string getStringAsChar16() const {
+    assert(getCharByteWidth() == 2 &&
+           "This function is used in places that assume strings use char16_t");
+    return std::u16string(reinterpret_cast<const char16_t *>(getTrailingObjects<char>()), reinterpret_cast<const char16_t *>(getTrailingObjects<char>() + getByteLength()));
+  }
+                                      
+  std::u32string getStringAsChar32() const {
+    assert(getCharByteWidth() == 4 &&
+           "This function is used in places that assume strings use char32_t");
+    return std::u32string(reinterpret_cast<const char32_t *>(getTrailingObjects<char>()), reinterpret_cast<const char32_t *>(getTrailingObjects<char>() + getByteLength()));
+  }
+                                      
+  std::wstring getStringAsWChar() const {
+    assert((getCharByteWidth() == 2 || getCharByteWidth() == 4) &&
+           "This function is used in places that assume strings use wchar_t");
+    return std::wstring(reinterpret_cast<const wchar_t *>(getTrailingObjects<char>()), reinterpret_cast<const wchar_t *>(getTrailingObjects<char>() + getByteLength()));
   }
 
   /// Allow access to clients that need the byte representation, such as

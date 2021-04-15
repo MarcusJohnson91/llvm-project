@@ -189,9 +189,9 @@ static std::string getScalarZeroExpressionForType(
     return "'\\0'";
   if (T.isWideCharType())
     return "L'\\0'";
-  if (T.isChar16Type())
+  if (T.isChar16Type(S.getLangOpts()))
     return "u'\\0'";
-  if (T.isChar32Type())
+  if (T.isChar32Type(S.getLangOpts()))
     return "U'\\0'";
   return "0";
 }

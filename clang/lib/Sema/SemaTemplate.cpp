@@ -7673,15 +7673,15 @@ Sema::BuildExpressionFromIntegralTemplateArgument(const TemplateArgument &Arg,
     T = ET->getDecl()->getIntegerType();
 
   Expr *E;
-  if (T->isAnyCharacterType()) {
+  if (T->isAnyCharacterType(getLangOpts())) {
     CharacterLiteral::CharacterKind Kind;
     if (T->isWideCharType())
       Kind = CharacterLiteral::Wide;
     else if (T->isChar8Type() && getLangOpts().Char8)
       Kind = CharacterLiteral::UTF8;
-    else if (T->isChar16Type())
+    else if (T->isChar16Type(getLangOpts()))
       Kind = CharacterLiteral::UTF16;
-    else if (T->isChar32Type())
+    else if (T->isChar32Type(getLangOpts()))
       Kind = CharacterLiteral::UTF32;
     else
       Kind = CharacterLiteral::Ascii;

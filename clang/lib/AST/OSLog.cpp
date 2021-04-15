@@ -201,8 +201,10 @@ bool clang::analyze_os_log::computeOSLogBufferLayout(
   }
 
   const StringLiteral *Lit = cast<StringLiteral>(StringArg->IgnoreParenCasts());
-  assert(Lit && (Lit->isOrdinary() || Lit->isUTF8()));
-  StringRef Data = Lit->getString();
+  assert(Lit);
+  std::string String(Lit->getStrDataAsChar());
+  StringRef Data(String);
+  
   OSLogFormatStringHandler H(VarArgs);
   ParsePrintfString(H, Data.begin(), Data.end(), Ctx.getLangOpts(),
                     Ctx.getTargetInfo(), /*isFreeBSDKPrintf*/ false);

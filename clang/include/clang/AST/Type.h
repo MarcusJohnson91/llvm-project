@@ -2047,11 +2047,11 @@ public:
   bool isScopedEnumeralType() const;
   bool isBooleanType() const;
   bool isCharType() const;
-  bool isWideCharType() const;
   bool isChar8Type() const;
-  bool isChar16Type() const;
-  bool isChar32Type() const;
-  bool isAnyCharacterType() const;
+  bool isWideCharType() const;
+  bool isChar16Type(const LangOptions &LangOpts) const;
+  bool isChar32Type(const LangOptions &LangOpts) const;
+  bool isAnyCharacterType(const LangOptions &LangOpts) const;
   bool isIntegralType(const ASTContext &Ctx) const;
 
   /// Determine whether this type is an integral or enumeration type.

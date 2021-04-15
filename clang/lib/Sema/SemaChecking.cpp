@@ -1195,10 +1195,9 @@ void Sema::checkFortifiedBuiltinMemoryFunction(FunctionDecl *FD,
       StringRef FormatStrRef = Format->getString();
       EstimateSizeFormatHandler H(FormatStrRef);
       const char *FormatBytes = FormatStrRef.data();
-      const ConstantArrayType *T =
-          Context.getAsConstantArrayType(Format->getType());
+      const ConstantArrayType *T = Context.getAsConstantArrayType(Format->getType());
       assert(T && "String literal not of constant array type!");
-      size_t TypeSize = T->getSize().getZExtValue();
+      size_t TypeSize = String.size();
 
       // In case there's a null byte somewhere.
       size_t StrLen =
@@ -8429,6 +8428,26 @@ class FormatStringLiteral {
   StringRef getString() const {
     return FExpr->getString().drop_front(Offset);
   }
+  
+  const char *getStrDataAsChar() const {
+    return FExpr->getStrDataAsChar();
+  }
+  
+  std::string getStringAsChar() const {
+    return FExpr->getStringAsChar();
+  }
+  
+  std::u16string getStringAsChar16() const {
+    return FExpr->getStringAsChar16();
+  }
+                                      
+  std::u32string getStringAsChar32() const {
+    return FExpr->getStringAsChar32();
+  }
+                                      
+  std::wstring getStringAsWChar() const {
+    return FExpr->getStringAsWChar();
+  }
 
   unsigned getByteLength() const {
     return FExpr->getByteLength() - getCharByteWidth() * Offset;
@@ -8825,8 +8844,8 @@ tryAgain:
 
 Sema::FormatStringType Sema::GetFormatStringType(const FormatAttr *Format) {
   return llvm::StringSwitch<FormatStringType>(Format->getType()->getName())
-      .Case("scanf", FST_Scanf)
-      .Cases("printf", "printf0", FST_Printf)
+      .Cases("scanf", "wscanf", FST_Scanf)
+      .Cases("printf", "printf0", "wprintf", FST_Printf)
       .Cases("NSString", "CFString", FST_NSString)
       .Case("strftime", FST_Strftime)
       .Case("strfmon", FST_Strfmon)
@@ -10526,23 +10545,17 @@ static void CheckFormatString(
     bool inFunctionCall, Sema::VariadicCallType CallType,
     llvm::SmallBitVector &CheckedVarArgs, UncoveredArgHandler &UncoveredArg,
     bool IgnoreStringsWithoutSpecifiers) {
-  // CHECK: is the format string a wide literal?
-  if (!FExpr->isAscii() && !FExpr->isUTF8()) {
-    CheckFormatHandler::EmitFormatDiagnostic(
-        S, inFunctionCall, Args[format_idx],
-        S.PDiag(diag::warn_format_string_is_wide_literal), FExpr->getBeginLoc(),
-        /*IsStringLocation*/ true, OrigFormatExpr->getSourceRange());
-    return;
-  }
-
-  // Str - The format string.  NOTE: this is NOT null-terminated!
-  StringRef StrRef = FExpr->getString();
+ 
+     std::string String(FExpr->getStrDataAsChar());
+  
+  StringRef StrRef(String);
   const char *Str = StrRef.data();
+  
   // Account for cases where the string literal is truncated in a declaration.
-  const ConstantArrayType *T =
-    S.Context.getAsConstantArrayType(FExpr->getType());
+  const ConstantArrayType *T = S.Context.getAsConstantArrayType(FExpr->getType());
   assert(T && "String literal not of constant array type!");
   size_t TypeSize = T->getSize().getZExtValue();
+  
   size_t StrLen = std::min(std::max(TypeSize, size_t(1)) - 1, StrRef.size());
   const unsigned numDataArgs = Args.size() - firstDataArg;
 
@@ -10550,15 +10563,16 @@ static void CheckFormatString(
       !analyze_format_string::parseFormatStringHasFormattingSpecifiers(
           Str, Str + StrLen, S.getLangOpts(), S.Context.getTargetInfo()))
     return;
-
+  
   // Emit a warning if the string literal is truncated and does not contain an
   // embedded null character.
-  if (TypeSize <= StrRef.size() && !StrRef.substr(0, TypeSize).contains('\0')) {
+  if (TypeSize < StrRef.size() &&
+      StrRef.substr(0, TypeSize).find('\0') == StringRef::npos) {
     CheckFormatHandler::EmitFormatDiagnostic(
-        S, inFunctionCall, Args[format_idx],
-        S.PDiag(diag::warn_printf_format_string_not_null_terminated),
-        FExpr->getBeginLoc(),
-        /*IsStringLocation=*/true, OrigFormatExpr->getSourceRange());
+                                             S, inFunctionCall, Args[format_idx],
+                                             S.PDiag(diag::warn_printf_format_string_not_null_terminated),
+                                             FExpr->getBeginLoc(),
+                                             /*IsStringLocation=*/true, OrigFormatExpr->getSourceRange());
     return;
   }
 
@@ -10596,13 +10610,15 @@ static void CheckFormatString(
 }
 
 bool Sema::FormatStringHasSArg(const StringLiteral *FExpr) {
-  // Str - The format string.  NOTE: this is NOT null-terminated!
-  StringRef StrRef = FExpr->getString();
-  const char *Str = StrRef.data();
   // Account for cases where the string literal is truncated in a declaration.
-  const ConstantArrayType *T = Context.getAsConstantArrayType(FExpr->getType());
+  const ConstantArrayType *T = Context.getAsConstantArrayType(FExpr->getType()); // FExpr->getType() is a QualType, and it's no longer relevent because we changed the format literal for type checking?
   assert(T && "String literal not of constant array type!");
   size_t TypeSize = T->getSize().getZExtValue();
+  
+  std::string String(FExpr->getStrDataAsChar());
+  StringRef StrRef(String);
+  const char *Str = StrRef.data();
+  
   size_t StrLen = std::min(std::max(TypeSize, size_t(1)) - 1, StrRef.size());
   return analyze_format_string::ParseFormatStringHasSArg(Str, Str + StrLen,
                                                          getLangOpts(),

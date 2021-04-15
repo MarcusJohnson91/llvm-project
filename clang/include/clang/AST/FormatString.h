@@ -249,7 +249,7 @@ protected:
 class ArgType {
 public:
   enum Kind { UnknownTy, InvalidTy, SpecificTy, ObjCPointerTy, CPointerTy,
-              AnyCharTy, CStrTy, WCStrTy, WIntTy };
+              AnyCharTy, CStrTy, WCStrTy, WIntTy, Char16Ty, Char32Ty };
 
   /// How well a given conversion specifier matches its argument.
   enum MatchKind {

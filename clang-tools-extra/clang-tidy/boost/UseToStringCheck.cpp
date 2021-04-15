@@ -16,7 +16,7 @@ namespace boost {
 
 namespace {
 AST_MATCHER(Type, isStrictlyInteger) {
-  return Node.isIntegerType() && !Node.isAnyCharacterType() &&
+  return Node.isIntegerType() && !Node.isAnyCharacterType(Finder->getASTContext().getLangOpts()) &&
          !Node.isBooleanType();
 }
 } // namespace
