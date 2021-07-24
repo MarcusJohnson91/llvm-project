@@ -494,6 +494,10 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsLong:
       case LengthModifier::AsWide:
         return ArgType(ArgType::WIntTy, "wint_t");
+      case LengthModifier::AsUTF16:
+        return ArgType(ArgType::Char16Ty, "char16_t");
+      case LengthModifier::AsUTF32:
+        return ArgType(ArgType::Char32Ty, "char32_t");
       case LengthModifier::AsShort:
         if (Ctx.getTargetInfo().getTriple().isOSMSVCRT())
           return Ctx.IntTy;
@@ -535,6 +539,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
       case LengthModifier::AsWide:
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
         return ArgType::Invalid();
     }
 
@@ -567,6 +573,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsPtrDiff:
         return ArgType::makePtrdiffT(
             ArgType(Ctx.getUnsignedPointerDiffType(), "unsigned ptrdiff_t"));
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
       case LengthModifier::AsWide:
@@ -618,6 +626,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsInt3264:
       case LengthModifier::AsInt64:
       case LengthModifier::AsWide:
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
         return ArgType::Invalid();
       case LengthModifier::AsShortLong:
         llvm_unreachable("only used for OpenCL which doesn not handle nArg");
@@ -632,9 +642,15 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
                          "const unichar *");
         return ArgType(ArgType::WCStrTy, "wchar_t *");
       }
-      if (LM.getKind() == LengthModifier::AsWide)
+      if (LM.getKind() == LengthModifier::AsWide) {
         return ArgType(ArgType::WCStrTy, "wchar_t *");
-      return ArgType::CStrTy;
+      }
+      if (LM.getKind() == LengthModifier::AsUTF16)
+        return ArgType(ArgType::Char16Ty, "char16_t *");
+      if (LM.getKind() == LengthModifier::AsUTF32)
+        return ArgType(ArgType::Char32Ty, "char32_t *");
+      else
+        return ArgType::CStrTy;
     case ConversionSpecifier::SArg:
       if (IsObjCLiteral)
         return ArgType(Ctx.getPointerType(Ctx.UnsignedShortTy.withConst()),
@@ -642,13 +658,22 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       if (Ctx.getTargetInfo().getTriple().isOSMSVCRT() &&
           LM.getKind() == LengthModifier::AsShort)
         return ArgType::CStrTy;
+      if (LM.getKind() == LengthModifier::AsUTF16)
+        return ArgType(ArgType::Char16Ty, "char16_t *");
+      if (LM.getKind() == LengthModifier::AsUTF32)
+        return ArgType(ArgType::Char32Ty, "char32_t *");
       return ArgType(ArgType::WCStrTy, "wchar_t *");
+    case ConversionSpecifier::cArg:
     case ConversionSpecifier::CArg:
       if (IsObjCLiteral)
         return ArgType(Ctx.UnsignedShortTy, "unichar");
       if (Ctx.getTargetInfo().getTriple().isOSMSVCRT() &&
           LM.getKind() == LengthModifier::AsShort)
         return Ctx.IntTy;
+      if (LM.getKind() == LengthModifier::AsUTF16)
+        return ArgType(ArgType::Char16Ty, "char16_t");
+      if (LM.getKind() == LengthModifier::AsUTF32)
+        return ArgType(ArgType::Char32Ty, "char32_t");
       return ArgType(Ctx.WideCharTy, "wchar_t");
     case ConversionSpecifier::pArg:
     case ConversionSpecifier::PArg:
@@ -706,17 +731,22 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
     return true;
   }
 
-  // Handle strings next (char *, wchar_t *)
-  if (QT->isPointerType() && (QT->getPointeeType()->isAnyCharacterType())) {
+  // Handle strings next (char *, wchar_t *, char16_t *, char32_t *)
+  if (QT->isPointerType() &&
+      (QT->getPointeeType()->isAnyCharacterType(LangOpt))) {
     CS.setKind(ConversionSpecifier::sArg);
 
     // Disable irrelevant flags
     HasAlternativeForm = false;
     HasLeadingZeroes = false;
 
-    // Set the long length modifier for wide characters
+    // Set the length modifier for characters
     if (QT->getPointeeType()->isWideCharType())
       LM.setKind(LengthModifier::AsWideChar);
+    else if (QT->getPointeeType()->isChar16Type(LangOpt))
+      LM.setKind(LengthModifier::AsUTF16);
+    else if (QT->getPointeeType()->isChar32Type(LangOpt))
+      LM.setKind(LengthModifier::AsUTF32);
     else
       LM.setKind(LengthModifier::None);
 
@@ -737,18 +767,9 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
     }
   }
 
-  // We can only work with builtin types.
-  if (!BT)
-    return false;
-
   // Set length modifier
   switch (BT->getKind()) {
   case BuiltinType::Bool:
-  case BuiltinType::WChar_U:
-  case BuiltinType::WChar_S:
-  case BuiltinType::Char8: // FIXME: Treat like 'char'?
-  case BuiltinType::Char16:
-  case BuiltinType::Char32:
   case BuiltinType::UInt128:
   case BuiltinType::Int128:
   case BuiltinType::Half:
@@ -820,6 +841,7 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   case BuiltinType::UChar:
   case BuiltinType::Char_S:
   case BuiltinType::SChar:
+  case BuiltinType::Char8:
     LM.setKind(LengthModifier::AsChar);
     break;
 
@@ -840,6 +862,19 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
 
   case BuiltinType::LongDouble:
     LM.setKind(LengthModifier::AsLongDouble);
+    break;
+
+  case BuiltinType::Char16:
+    LM.setKind(LengthModifier::AsUTF16);
+    break;
+
+  case BuiltinType::Char32:
+    LM.setKind(LengthModifier::AsUTF32);
+    break;
+
+  case BuiltinType::WChar_S:
+  case BuiltinType::WChar_U:
+    LM.setKind(LengthModifier::AsWide);
     break;
   }
 
@@ -874,7 +909,7 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
 
   // Set conversion specifier and disable any flags which do not apply to it.
   // Let typedefs to char fall through to int, as %c is silly for uint8_t.
-  if (!QT->getAs<TypedefType>() && QT->isCharType()) {
+  if (!QT->getAs<TypedefType>() && QT->isAnyCharacterType()) {
     CS.setKind(ConversionSpecifier::cArg);
     LM.setKind(LengthModifier::None);
     Precision.setHowSpecified(OptionalAmount::NotSpecified);

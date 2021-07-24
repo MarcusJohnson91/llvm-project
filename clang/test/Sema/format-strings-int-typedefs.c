@@ -12,6 +12,10 @@ void test(void) {
   printf("%td", 42.0); // expected-warning {{format specifies type 'ptrdiff_t' (aka 'int')}}
   printf("%lc", 42.0); // expected-warning {{format specifies type 'wint_t' (aka 'int')}}
   printf("%ls", 42.0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  printf("%l16c", 42.0); // expected-warning {{format specifies type 'char16_t' (aka 'int')}}
+  printf("%l16s", 42.0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  printf("%l32c", 42.0); // expected-warning {{format specifies type 'char32_t' (aka 'int')}}
+  printf("%l32s", 42.0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   printf("%S", 42.0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   printf("%C", 42.0);  // expected-warning {{format specifies type 'wchar_t' (aka 'int')}}
   
@@ -21,6 +25,10 @@ void test(void) {
   wprintf(L"%td", 42.0); // expected-warning {{format specifies type 'ptrdiff_t' (aka 'int')}}
   wprintf(L"%lc", 42.0); // expected-warning {{format specifies type 'wint_t' (aka 'int')}}
   wprintf(L"%ls", 42.0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  wprintf(L"%l16c", 42.0); // expected-warning {{format specifies type 'char16_t' (aka 'int')}}
+  wprintf(L"%l16s", 42.0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  wprintf(L"%l32c", 42.0); // expected-warning {{format specifies type 'char32_t' (aka 'int')}}
+  wprintf(L"%l32s", 42.0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   wprintf(L"%S", 42.0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   wprintf(L"%C", 42.0);  // expected-warning {{format specifies type 'wchar_t' (aka 'int')}}
 
@@ -30,6 +38,10 @@ void test(void) {
   scanf("%td", 0); // expected-warning {{format specifies type 'ptrdiff_t *' (aka 'int *')}}
   scanf("%lc", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   scanf("%ls", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  scanf("%l16c", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  scanf("%l16s", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  scanf("%l32c", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
+  scanf("%l32s", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   scanf("%S",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   scanf("%C",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   
@@ -39,6 +51,10 @@ void test(void) {
   wscanf("%td", 0); // expected-warning {{format specifies type 'ptrdiff_t *' (aka 'int *')}}
   wscanf("%lc", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   wscanf("%ls", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  wscanf("%l16c", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  wscanf("%l16s", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  wscanf("%l32c", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
+  wscanf("%l32s", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   wscanf("%S",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   wscanf("%C",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
 

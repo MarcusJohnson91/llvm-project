@@ -261,6 +261,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
       }
@@ -302,6 +304,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
       }
@@ -329,14 +333,18 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
 
     // Char, string and scanlist.
     case ConversionSpecifier::cArg:
-    case ConversionSpecifier::sArg:
+    case ConversionSpecifier::CArg:
     case ConversionSpecifier::ScanListArg:
       switch (LM.getKind()) {
         case LengthModifier::None:
           return ArgType::PtrTo(ArgType::AnyCharTy);
         case LengthModifier::AsLong:
         case LengthModifier::AsWide:
-          return ArgType::PtrTo(ArgType(Ctx.getWideCharType(), "wchar_t"));
+          return ArgType::PtrTo(ArgType::WCStrTy);
+        case LengthModifier::AsUTF16:
+          return ArgType(ArgType::Char16Ty);
+        case LengthModifier::AsUTF32:
+          return ArgType(ArgType::Char32Ty);
         case LengthModifier::AsAllocate:
         case LengthModifier::AsMAllocate:
           return ArgType::PtrTo(ArgType::CStrTy);
@@ -347,13 +355,17 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         default:
           return ArgType::Invalid();
       }
-    case ConversionSpecifier::CArg:
+    case ConversionSpecifier::sArg:
     case ConversionSpecifier::SArg:
       // FIXME: Mac OS X specific?
       switch (LM.getKind()) {
         case LengthModifier::None:
         case LengthModifier::AsWide:
-          return ArgType::PtrTo(ArgType(Ctx.getWideCharType(), "wchar_t"));
+          return ArgType::PtrTo(ArgType(Ctx.getWideCharType(), "wchar_t *"));
+        case LengthModifier::AsUTF16:
+          return ArgType::PtrTo(ArgType(Ctx.getChar16Type(), "char16_t *"));
+        case LengthModifier::AsUTF32:
+          return ArgType::PtrTo(ArgType(Ctx.getChar32Type(), "char32_t *"));
         case LengthModifier::AsAllocate:
         case LengthModifier::AsMAllocate:
           return ArgType::PtrTo(ArgType(ArgType::WCStrTy, "wchar_t *"));
@@ -398,6 +410,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
         }
@@ -435,10 +449,14 @@ bool ScanfSpecifier::fixType(QualType QT, QualType RawQT,
     return false;
 
   // Pointer to a character.
-  if (PT->isAnyCharacterType()) {
+  if (PT->isAnyCharacterType(LangOpt)) {
     CS.setKind(ConversionSpecifier::sArg);
     if (PT->isWideCharType())
       LM.setKind(LengthModifier::AsWideChar);
+    else if (PT->isChar16Type(LangOpt))
+      LM.setKind(LengthModifier::AsUTF16);
+    else if (PT->isChar32Type(LangOpt))
+      LM.setKind(LengthModifier::AsUTF32);
     else
       LM.setKind(LengthModifier::None);
 

@@ -65,22 +65,24 @@ class LengthModifier {
 public:
   enum Kind {
     None,
-    AsChar,       // 'hh'
-    AsShort,      // 'h'
-    AsShortLong,  // 'hl' (OpenCL float/int vector element)
-    AsLong,       // 'l'
-    AsLongLong,   // 'll'
-    AsQuad,       // 'q' (BSD, deprecated, for 64-bit integer types)
-    AsIntMax,     // 'j'
-    AsSizeT,      // 'z'
-    AsPtrDiff,    // 't'
-    AsInt32,      // 'I32' (MSVCRT, like __int32)
-    AsInt3264,    // 'I'   (MSVCRT, like __int3264 from MIDL)
-    AsInt64,      // 'I64' (MSVCRT, like __int64)
-    AsLongDouble, // 'L'
-    AsAllocate,   // for '%as', GNU extension to C90 scanf
-    AsMAllocate,  // for '%ms', GNU extension to scanf
-    AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
+    AsChar,             // 'hh'
+    AsShort,            // 'h'
+    AsShortLong,        // 'hl' (OpenCL float/int vector element)
+    AsLong,             // 'l'
+    AsLongLong,         // 'll'
+    AsQuad,             // 'q' (BSD, deprecated, for 64-bit integer types)
+    AsIntMax,           // 'j'
+    AsSizeT,            // 'z'
+    AsPtrDiff,          // 't'
+    AsInt32,            // 'I32' (MSVCRT, like __int32)
+    AsInt3264,          // 'I'   (MSVCRT, like __int3264 from MIDL)
+    AsInt64,            // 'I64' (MSVCRT, like __int64)
+    AsLongDouble,       // 'L'
+    AsAllocate,         // for '%as', GNU extension to C90 scanf
+    AsMAllocate,        // for '%ms', GNU extension to scanf
+    AsUTF16,            // for '%l16(c|s)', Clang extension
+    AsUTF32,            // for '%l32(c|s)', Clang extension
+    AsWide,             // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
   };
 

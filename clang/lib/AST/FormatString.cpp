@@ -231,7 +231,17 @@ clang::analyze_format_string::ParseLengthModifier(FormatSpecifier &FS,
       break;
     case 'l':
       ++I;
-      if (I != E && *I == 'l') {
+      if (I + 1 != E && I[0] == '1' && I[1] == '6') {
+        ++I;
+        ++I;
+        lmKind = LengthModifier::AsUTF16;
+        break;
+      } else if (I + 1 != E && I[0] == '3' && I[1] == '2') {
+        ++I;
+        ++I;
+        lmKind = LengthModifier::AsUTF32;
+        break;
+      } else if (I + 1 != E && I[0] == 'l') {
         ++I;
         lmKind = LengthModifier::AsLongLong;
       } else {
@@ -465,6 +475,24 @@ ArgType::matchesType(ASTContext &C, QualType argTy) const {
       return WInt == PromoArg ? Match : NoMatch;
     }
 
+    case Char16Ty: {
+      const PointerType *PT = argTy->getAs<PointerType>();
+      if (!PT)
+        return NoMatch;
+      QualType pointeeTy =
+          C.getCanonicalType(PT->getPointeeType()).getUnqualifiedType();
+      return pointeeTy == C.getChar16Type() ? Match : NoMatch;
+    }
+
+    case Char32Ty: {
+      const PointerType *PT = argTy->getAs<PointerType>();
+      if (!PT)
+        return NoMatch;
+      QualType pointeeTy =
+          C.getCanonicalType(PT->getPointeeType()).getUnqualifiedType();
+      return pointeeTy == C.getChar32Type() ? Match : NoMatch;
+    }
+
     case CPointerTy:
       if (argTy->isVoidPointerType()) {
         return Match;
@@ -524,6 +552,12 @@ QualType ArgType::getRepresentativeType(ASTContext &C) const {
       break;
     case WCStrTy:
       Res = C.getPointerType(C.getWideCharType());
+      break;
+    case Char16Ty:
+      Res = C.getPointerType(C.getChar16Type());
+      break;
+    case Char32Ty:
+      Res = C.getPointerType(C.getChar32Type());
       break;
     case ObjCPointerTy:
       Res = C.ObjCBuiltinIdTy;
@@ -612,6 +646,10 @@ analyze_format_string::LengthModifier::toString() const {
     return "m";
   case AsWide:
     return "w";
+  case AsUTF16:
+    return "l16";
+  case AsUTF32:
+    return "l32";
   case None:
     return "";
   }
@@ -865,6 +903,17 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target,
         default:
           return false;
       }
+    case LengthModifier::AsUTF16:
+    case LengthModifier::AsUTF32:
+      switch (CS.getKind()) {
+      case ConversionSpecifier::cArg:
+      case ConversionSpecifier::CArg:
+      case ConversionSpecifier::sArg:
+      case ConversionSpecifier::SArg:
+        return true;
+      default:
+        return false;
+      }
     case LengthModifier::AsWide:
       switch (CS.getKind()) {
         case ConversionSpecifier::cArg:
@@ -891,6 +940,9 @@ bool FormatSpecifier::hasStandardLengthModifier() const {
     case LengthModifier::AsSizeT:
     case LengthModifier::AsPtrDiff:
     case LengthModifier::AsLongDouble:
+    case LengthModifier::AsWide:
+    case LengthModifier::AsUTF16:
+    case LengthModifier::AsUTF32:
       return true;
     case LengthModifier::AsAllocate:
     case LengthModifier::AsMAllocate:
@@ -898,7 +950,6 @@ bool FormatSpecifier::hasStandardLengthModifier() const {
     case LengthModifier::AsInt32:
     case LengthModifier::AsInt3264:
     case LengthModifier::AsInt64:
-    case LengthModifier::AsWide:
     case LengthModifier::AsShortLong: // ???
       return false;
   }
@@ -1000,6 +1051,12 @@ bool FormatSpecifier::namedTypeToLengthModifier(QualType QT,
       return true;
     } else if (Identifier->getName() == "ptrdiff_t") {
       LM.setKind(LengthModifier::AsPtrDiff);
+      return true;
+    } else if (Identifier->getName() == "char16_t") {
+      LM.setKind(LengthModifier::AsUTF16);
+      return true;
+    } else if (Identifier->getName() == "char32_t") {
+      LM.setKind(LengthModifier::AsUTF32);
       return true;
     }
   }
