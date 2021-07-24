@@ -1991,7 +1991,22 @@ bool Type::isCharType() const {
   return false;
 }
 
-bool Type::isWideCharType() const {
+bool Type::isSugarType(const std::string TypeName) const {
+  QualType Desugar = this->getLocallyUnqualifiedSingleStepDesugaredType();
+
+  while (!Desugar->isCanonicalUnqualified()) {
+    if (Desugar.getAsString() == TypeName) {
+      return true;
+    }
+    Desugar = Desugar->getLocallyUnqualifiedSingleStepDesugaredType();
+  }
+  return false;
+}
+
+bool Type::isWideCharType(const LangOptions &LangOpts) const {
+  if (!LangOpts.CPlusPlus) {
+    return isSugarType("wchar_t");
+  }
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() == BuiltinType::WChar_S ||
            BT->getKind() == BuiltinType::WChar_U;
@@ -2004,36 +2019,54 @@ bool Type::isChar8Type() const {
   return false;
 }
 
-bool Type::isChar16Type() const {
-  if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
-    return BT->getKind() == BuiltinType::Char16;
-  return false;
-}
-
-bool Type::isChar32Type() const {
-  if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
-    return BT->getKind() == BuiltinType::Char32;
-  return false;
-}
-
-/// Determine whether this type is any of the built-in character
-/// types.
-bool Type::isAnyCharacterType() const {
-  const auto *BT = dyn_cast<BuiltinType>(CanonicalType);
-  if (!BT) return false;
-  switch (BT->getKind()) {
-  default: return false;
-  case BuiltinType::Char_U:
-  case BuiltinType::UChar:
-  case BuiltinType::WChar_U:
-  case BuiltinType::Char8:
-  case BuiltinType::Char16:
-  case BuiltinType::Char32:
-  case BuiltinType::Char_S:
-  case BuiltinType::SChar:
-  case BuiltinType::WChar_S:
-    return true;
+bool Type::isChar16Type(const LangOptions &LangOpts) const {
+  if (!LangOpts.CPlusPlus) {
+    return isSugarType("char16_t");
   }
+  if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
+    if (BT->getKind() == BuiltinType::Char16)
+      return true;
+  return false;
+}
+
+bool Type::isChar32Type(const LangOptions &LangOpts) const {
+  if (!LangOpts.CPlusPlus) {
+    return isSugarType("char32_t");
+  }
+  if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
+    if (BT->getKind() == BuiltinType::Char32)
+      return true;
+  return false;
+}
+
+/// Determine whether this type is any of the character types.
+bool Type::isAnyCharacterType(const LangOptions &LangOpts) const {
+  if (!LangOpts.CPlusPlus) {
+    if (isChar16Type(LangOpts)) {
+      return true;
+    } else if (isChar32Type(LangOpts)) {
+      return true;
+    } else if (isWideCharType(LangOpts)) {
+      return true;
+    }
+  }
+  if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType)) {
+    switch (BT->getKind()) {
+    case BuiltinType::Char8:
+    case BuiltinType::Char16:
+    case BuiltinType::Char32:
+    case BuiltinType::Char_S:
+    case BuiltinType::Char_U:
+    case BuiltinType::SChar:
+    case BuiltinType::UChar:
+    case BuiltinType::WChar_S:
+    case BuiltinType::WChar_U:
+      return true;
+    default:
+      return false;
+    }
+  }
+  return false;
 }
 
 /// isSignedIntegerType - Return true if this is an integer type that is

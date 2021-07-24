@@ -144,7 +144,7 @@ void ThrowByValueCatchByReferenceCheck::diagnoseCatchLocations(
         "catch by reference instead";
     // We do not diagnose when catching pointer to strings since we also allow
     // throwing string literals.
-    if (!PT->getPointeeType()->isAnyCharacterType())
+    if (!PT->getPointeeType()->isAnyCharacterType(getLangOpts()))
       diag(VarDecl->getBeginLoc(), DiagMsgCatchReference);
   } else if (!CaughtType->isReferenceType()) {
     const char *DiagMsgCatchReference = "catch handler catches by value; "

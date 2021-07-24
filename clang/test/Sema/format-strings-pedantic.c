@@ -5,9 +5,14 @@
 __attribute__((format(printf, 1, 2)))
 int printf(const char *restrict, ...);
 
-int main(void) {
+__attribute__((format(wprintf, 1, 2))) int wprintf(const wchar_t *restrict, ...);
+
+int main() {
   printf("%p", (int *)0); // expected-warning {{format specifies type 'void *' but the argument has type 'int *'}}
   printf("%p", (void *)0);
+
+  wprintf(L"%p", (int *)0); // expected-warning {{format specifies type 'void *' but the argument has type 'int *'}}
+  wprintf(L"%p", (void *)0);
 
 #ifdef __OBJC__
   printf("%p", ^{}); // expected-warning {{format specifies type 'void *' but the argument has type 'void (^)(void)'}}

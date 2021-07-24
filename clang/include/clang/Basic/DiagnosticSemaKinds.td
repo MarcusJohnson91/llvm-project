@@ -9506,8 +9506,6 @@ def note_callee_static_array : Note<
   "callee declares array parameter as static here">;
 def warn_empty_format_string : Warning<
   "format string is empty">, InGroup<FormatZeroLength>;
-def warn_format_string_is_wide_literal : Warning<
-  "format string should not be a wide string">, InGroup<Format>;
 def warn_printf_format_string_contains_null_char : Warning<
   "format string contains '\\0' within the string body">, InGroup<Format>;
 def warn_printf_format_string_not_null_terminated : Warning<

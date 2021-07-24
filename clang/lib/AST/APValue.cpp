@@ -628,12 +628,13 @@ static double GetApproxValue(const llvm::APFloat &F) {
 static bool TryPrintAsStringLiteral(raw_ostream &Out,
                                     const PrintingPolicy &Policy,
                                     const ArrayType *ATy,
-                                    ArrayRef<APValue> Inits) {
+                                    ArrayRef<APValue> Inits,
+                                    const LangOptions &LangOpts) {
   if (Inits.empty())
     return false;
 
   QualType Ty = ATy->getElementType();
-  if (!Ty->isAnyCharacterType())
+  if (!Ty->isAnyCharacterType(LangOpts))
     return false;
 
   // Nothing we can do about a sequence that is not null-terminated
@@ -675,13 +676,13 @@ static bool TryPrintAsStringLiteral(raw_ostream &Out,
   Buf.append(Ellipsis);
   Buf.push_back('"');
 
-  if (Ty->isWideCharType())
+  if (Ty->isWideCharType(LangOpts))
     Out << 'L';
   else if (Ty->isChar8Type())
     Out << "u8";
-  else if (Ty->isChar16Type())
+  else if (Ty->isChar16Type(LangOpts))
     Out << 'u';
-  else if (Ty->isChar32Type())
+  else if (Ty->isChar32Type(LangOpts))
     Out << 'U';
 
   Out << Buf;
@@ -859,9 +860,12 @@ void APValue::printPretty(raw_ostream &Out, const PrintingPolicy &Policy,
   case APValue::Array: {
     const ArrayType *AT = Ty->castAsArrayTypeUnsafe();
     unsigned N = getArrayInitializedElts();
-    if (N != 0 && TryPrintAsStringLiteral(Out, Policy, AT,
-                                          {&getArrayInitializedElt(0), N}))
+    ArrayRef<APValue> ArrRef(&getArrayInitializedElt(0),
+                             N); // {&getArrayInitializedElt(0), N}
+    if (N != 0 &&
+        TryPrintAsStringLiteral(Out, Policy, AT, ArrRef, Ctx->getLangOpts())) {
       return;
+    }
     QualType ElemTy = AT->getElementType();
     Out << '{';
     unsigned I = 0;

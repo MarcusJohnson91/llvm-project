@@ -8,6 +8,9 @@ extern "C" {
 extern int scanf(const char *restrict, ...);
 extern int printf(const char *restrict, ...);
 extern int vprintf(const char *restrict, va_list);
+extern int wscanf(const wchar_t *restrict, ...);
+extern int wprintf(const wchar_t *restrict, ...);
+extern int vwprintf(const wchar_t *restrict, va_list);
 }
 
 void f(char **sp, float *fp) {
@@ -18,12 +21,23 @@ void f(char **sp, float *fp) {
   // expected-warning@-4 {{format specifies type 'float *' but the argument has type 'char **'}}
 #endif
 
+  scanf("%as", sp);
+#if __cplusplus <= 199711L
+  // expected-warning@-2 {{'a' length modifier is not supported by ISO C}}
+#else
+  // expected-warning@-4 {{format specifies type 'float *' but the argument has type 'wchar_t **'}}
+#endif
+
   printf("%a", 1.0);
   scanf("%afoobar", fp);
+
+  wprintf("%a", 1.0);
+  wscanf("%afoobar", fp);
 }
 
 void g() {
   printf("%ls", "foo"); // expected-warning{{format specifies type 'wchar_t *' but the argument has type 'const char *'}}
+  wprintf("%ls", "foo"); // expected-warning{{format specifies type 'wchar_t *' but the argument has type 'const char *'}}
 }
 
 // Test that we properly handle format_idx on C++ members.

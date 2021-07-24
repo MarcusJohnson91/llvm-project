@@ -331,11 +331,11 @@ ExprResult Sema::BuildObjCNumericLiteral(SourceLocation AtLoc, Expr *Number) {
       break;
 
     case CharacterLiteral::UTF16:
-      NumberType = Context.Char16Ty;
+      NumberType = Context.getChar16Type();
       break;
 
     case CharacterLiteral::UTF32:
-      NumberType = Context.Char32Ty;
+      NumberType = Context.getChar32Type();
       break;
     }
   }
@@ -621,11 +621,11 @@ ExprResult Sema::BuildObjCBoxedExpr(SourceRange SR, Expr *ValueExpr) {
         break;
 
       case CharacterLiteral::UTF16:
-        ValueType = Context.Char16Ty;
+        ValueType = Context.getChar16Type();
         break;
 
       case CharacterLiteral::UTF32:
-        ValueType = Context.Char32Ty;
+        ValueType = Context.getChar32Type();
         break;
       }
     }

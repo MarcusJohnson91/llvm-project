@@ -2030,8 +2030,8 @@ void Sema::CheckCompatibleReinterpretCast(QualType SrcType, QualType DestType,
     return;
   }
   // or one of the types is a char or void type
-  if (DestTy->isAnyCharacterType() || DestTy->isVoidType() ||
-      SrcTy->isAnyCharacterType() || SrcTy->isVoidType()) {
+  if (DestTy->isAnyCharacterType(getLangOpts()) || DestTy->isVoidType() ||
+      SrcTy->isAnyCharacterType(getLangOpts()) || SrcTy->isVoidType()) {
     return;
   }
   // or one of the types is a tag type.

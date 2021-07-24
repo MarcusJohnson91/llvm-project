@@ -2114,12 +2114,13 @@ public:
   /// Determine whether this type is a scoped enumeration type.
   bool isScopedEnumeralType() const;
   bool isBooleanType() const;
+  bool isSugarType(std::string) const;
   bool isCharType() const;
-  bool isWideCharType() const;
+  bool isWideCharType(const LangOptions &LangOpts) const;
   bool isChar8Type() const;
-  bool isChar16Type() const;
-  bool isChar32Type() const;
-  bool isAnyCharacterType() const;
+  bool isChar16Type(const LangOptions &LangOpts) const;
+  bool isChar32Type(const LangOptions &LangOpts) const;
+  bool isAnyCharacterType(const LangOptions &LangOpts) const;
   bool isIntegralType(const ASTContext &Ctx) const;
 
   /// Determine whether this type is an integral or enumeration type.

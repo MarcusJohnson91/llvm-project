@@ -2257,7 +2257,7 @@ bool Sema::IsIntegralPromotion(Expr *From, QualType FromType, QualType ToType) {
   //   underlying type, an rvalue a prvalue of type char16_t, char32_t,
   //   or wchar_t can be converted to an rvalue a prvalue of its underlying
   //   type.
-  if (FromType->isAnyCharacterType() && !FromType->isCharType() &&
+  if (FromType->isAnyCharacterType(getLangOpts()) && !FromType->isCharType() &&
       ToType->isIntegerType()) {
     // Determine whether the type we're converting from is signed or
     // unsigned.

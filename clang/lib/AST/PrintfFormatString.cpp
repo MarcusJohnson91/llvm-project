@@ -710,7 +710,8 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
   }
 
   // Handle strings next (char *, wchar_t *)
-  if (QT->isPointerType() && (QT->getPointeeType()->isAnyCharacterType())) {
+  if (QT->isPointerType() &&
+      (QT->getPointeeType()->isAnyCharacterType(LangOpt))) {
     CS.setKind(ConversionSpecifier::sArg);
 
     // Disable irrelevant flags
@@ -718,7 +719,7 @@ bool PrintfSpecifier::fixType(QualType QT, const LangOptions &LangOpt,
     HasLeadingZeroes = false;
 
     // Set the long length modifier for wide characters
-    if (QT->getPointeeType()->isWideCharType())
+    if (QT->getPointeeType()->isWideCharType(LangOpt))
       LM.setKind(LengthModifier::AsWideChar);
     else
       LM.setKind(LengthModifier::None);

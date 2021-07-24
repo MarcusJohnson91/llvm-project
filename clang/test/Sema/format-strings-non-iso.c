@@ -1,7 +1,10 @@
 // RUN: %clang_cc1 -triple i686-linux-gnu -fsyntax-only -verify -std=c99 -Wformat-non-iso %s
 
 int printf(const char *restrict, ...);
-int scanf(const char * restrict, ...);
+int scanf(const char *restrict, ...);
+
+int wprintf(const wchar_t *restrict, ...);
+int wscanf(const wchar_t *restrict, ...);
 
 void f(void) {
   char *cp;
@@ -10,12 +13,19 @@ void f(void) {
   printf("%qd", (long long)42); // expected-warning{{'q' length modifier is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
   scanf("%qd", (long long *)0); // expected-warning{{'q' length modifier is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
 
+  // The 'q' length modifier.
+  wprintf(L"%qd", (long long)42); // expected-warning{{'q' length modifier is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+  wscanf(L"%qd", (long long *)0); // expected-warning{{'q' length modifier is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+
   // The 'm' length modifier.
   scanf("%ms", &cp); // expected-warning{{'m' length modifier is not supported by ISO C}}
+  wscanf(L"%ms", &cp); // expected-warning{{'m' length modifier is not supported by ISO C}}
 
   // The 'S' and 'C' conversion specifiers.
   printf("%S", L"foo"); // expected-warning{{'S' conversion specifier is not supported by ISO C}}
   printf("%C", L'x'); // expected-warning{{'C' conversion specifier is not supported by ISO C}}
+  wprintf(L"%S", L"foo"); // expected-warning{{'S' conversion specifier is not supported by ISO C}}
+  wprintf(L"%C", L'x');   // expected-warning{{'C' conversion specifier is not supported by ISO C}}
 
   // Combining 'L' with an integer conversion specifier.
   printf("%Li", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'i' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
@@ -24,6 +34,13 @@ void f(void) {
   printf("%Lx", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'x' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
   printf("%LX", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'X' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
 
+  wprintf(L"%Li", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'i' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+  wprintf(L"%Lo", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'o' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+  wprintf(L"%Lu", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'u' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+  wprintf(L"%Lx", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'x' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+  wprintf(L"%LX", (long long)42); // expected-warning{{using length modifier 'L' with conversion specifier 'X' is not supported by ISO C}} expected-note{{did you mean to use 'll'?}}
+
   // Positional arguments.
   printf("%1$d", 42); // expected-warning{{positional arguments are not supported by ISO C}}
+  wprintf(L"%1$d", 42); // expected-warning{{positional arguments are not supported by ISO C}}
 }

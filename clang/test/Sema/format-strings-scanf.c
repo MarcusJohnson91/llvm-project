@@ -28,6 +28,7 @@ typedef __WCHAR_TYPE__ wchar_t;
 
 int fscanf(FILE * restrict, const char * restrict, ...) ;
 int scanf(const char * restrict, ...) ;
+int wscanf(const wchar_t *restrict, ...);
 int sscanf(const char * restrict, const char * restrict, ...) ;
 int my_scanf(const char * restrict, ...) __attribute__((__format__(__scanf__, 1, 2)));
 
@@ -42,6 +43,11 @@ void test(const char *s, int *i) {
   scanf("%d%[asdfasdfd", i, s); // expected-warning{{no closing ']' for '%[' in scanf format string}}
   scanf("%B", i); // expected-warning{{invalid conversion specifier 'B'}}
 
+  wscanf(s, i);                   // expected-warning{{format string is not a string literal}}
+  wscanf(L"%0d", i);              // expected-warning{{zero field width in scanf format string is unused}}
+  wscanf(L"%00d", i);             // expected-warning{{zero field width in scanf format string is unused}}
+  wscanf(L"%d%[asdfasdfd", i, s); // expected-warning{{no closing ']' for '%[' in scanf format string}}
+
   unsigned short s_x;
   scanf ("%" "hu" "\n", &s_x); // no-warning
   scanf("%hb", &s_x);
@@ -54,12 +60,31 @@ void test(const char *s, int *i) {
   scanf("%*d", i); // // expected-warning{{data argument not used by format string}}
   scanf("%*d%1$d", i); // no-warning
 
+  unsigned short s_x;
+  wscanf(L"%"
+         L"hu"
+         L"\n",
+         &s_x);          // no-warning
+  wscanf(L"%y", i);      // expected-warning{{invalid conversion specifier 'y'}}
+  wscanf(L"%%");         // no-warning
+  wscanf(L"%%%1$d", i);  // no-warning
+  wscanf(L"%1$d%%", i);  // no-warning
+  wscanf(L"%d", i, i);   // expected-warning{{data argument not used by format string}}
+  wscanf(L"%*d", i);     // expected-warning{{data argument not used by format string}}
+  wscanf(L"%*d", i);     // expected-warning{{data argument not used by format string}}
+  wscanf(L"%*d%1$d", i); // no-warning
+
   scanf("%s", (char*)0); // no-warning
   scanf("%s", (volatile char*)0); // no-warning
   scanf("%s", (signed char*)0); // no-warning
   scanf("%s", (unsigned char*)0); // no-warning
   scanf("%hhu", (signed char*)0); // no-warning
-  scanf("%hhb", (signed char*)0); // no-warning
+
+  wscanf(L"%s", (wchar_t *)0);          // no-warning
+  wscanf(L"%s", (volatile wchar_t *)0); // no-warning
+  wscanf(L"%s", (signed wchar_t *)0);   // no-warning
+  wscanf(L"%s", (unsigned wchar_t *)0); // no-warning
+  wscanf(L"%hhu", (signed wchar_t *)0); // no-warning
 }
 
 void bad_length_modifiers(char *s, void *p, wchar_t *ws, long double *ld) {
@@ -67,6 +92,11 @@ void bad_length_modifiers(char *s, void *p, wchar_t *ws, long double *ld) {
   scanf("%1$zp", &p); // expected-warning{{length modifier 'z' results in undefined behavior or no effect with 'p' conversion specifier}}
   scanf("%ls", ws); // no-warning
   scanf("%#.2Lf", ld); // expected-warning{{invalid conversion specifier '#'}}
+
+  wscanf(L"%hhs", "foo"); // expected-warning{{length modifier 'hh' results in undefined behavior or no effect with 's' conversion specifier}}
+  wscanf(L"%1$zp", &p);   // expected-warning{{length modifier 'z' results in undefined behavior or no effect with 'p' conversion specifier}}
+  wscanf(L"%ls", ws);     // no-warning
+  wscanf(L"%#.2Lf", ld);  // expected-warning{{invalid conversion specifier '#'}}
 }
 
 void missing_argument_with_length_modifier() {

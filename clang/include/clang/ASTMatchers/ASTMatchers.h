@@ -6280,7 +6280,7 @@ AST_MATCHER(QualType, isSignedInteger) {
 /// functionDecl(hasAnyParameter(hasType(isAnyCharacter())))
 /// matches "a(char)", "b(wchar_t)", but not "c(double)".
 AST_MATCHER(QualType, isAnyCharacter) {
-    return Node->isAnyCharacterType();
+  return Node->isAnyCharacterType(Finder->getASTContext().getLangOpts());
 }
 
 /// Matches QualType nodes that are of any pointer type; this includes

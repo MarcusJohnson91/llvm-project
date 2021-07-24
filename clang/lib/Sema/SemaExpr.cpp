@@ -11396,14 +11396,14 @@ static void diagnoseStringPlusChar(Sema &Self, SourceLocation OpLoc,
     return;
 
   // Return if not a CharacterType.
-  if (!StringType->getPointeeType()->isAnyCharacterType())
+  if (!StringType->getPointeeType()->isAnyCharacterType(Self.getLangOpts()))
     return;
 
   ASTContext &Ctx = Self.getASTContext();
   SourceRange DiagRange(LHSExpr->getBeginLoc(), RHSExpr->getEndLoc());
 
   const QualType CharType = CharExpr->getType();
-  if (!CharType->isAnyCharacterType() &&
+  if (!CharType->isAnyCharacterType(Self.getLangOpts()) &&
       CharType->isIntegerType() &&
       llvm::isUIntN(Ctx.getCharWidth(), CharExpr->getValue())) {
     Self.Diag(OpLoc, diag::warn_string_plus_char)

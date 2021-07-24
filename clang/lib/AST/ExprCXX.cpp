@@ -928,7 +928,7 @@ UserDefinedLiteral::getLiteralOperatorKind() const {
     cast<FunctionDecl>(getCalleeDecl())->getParamDecl(0)->getType();
   if (ParamTy->isPointerType())
     return LOK_Raw;
-  if (ParamTy->isAnyCharacterType())
+  if (ParamTy->isAnyCharacterType(getCalleeDecl()->getLangOpts()))
     return LOK_Character;
   if (ParamTy->isIntegerType())
     return LOK_Integer;

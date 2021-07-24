@@ -8,7 +8,9 @@
 // RUN: %clang_cc1 -fsyntax-only -verify -triple x86_64-unknown-freebsd -Wformat-non-iso %s
 
 int printf(const char *restrict, ...);
-int scanf(const char * restrict, ...) ;
+int scanf(const char *restrict, ...);
+int wprintf(const wchar_t *restrict, ...);
+int wscanf(const wchar_t *restrict, ...);
 
 void test(void) {
   int justRight = 1;
@@ -21,6 +23,13 @@ void test(void) {
   printf("%O", justRight);
   printf("%O", tooLong);
 
+  wprintf(L"%D", justRight);
+  wprintf(L"%D", tooLong);
+  wprintf(L"%U", justRight);
+  wprintf(L"%U", tooLong);
+  wprintf(L"%O", justRight);
+  wprintf(L"%O", tooLong);
+
 #ifdef ALLOWED
   // expected-warning@-8 {{'D' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'd'?}}
   // expected-warning@-8 {{'D' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'd'?}} expected-warning@-8 {{format specifies type 'int' but the argument has type 'long'}}
@@ -28,7 +37,19 @@ void test(void) {
   // expected-warning@-8 {{'U' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'u'?}} expected-warning@-8 {{format specifies type 'unsigned int' but the argument has type 'long'}}
   // expected-warning@-8 {{'O' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'o'?}}
   // expected-warning@-8 {{'O' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'o'?}} expected-warning@-8 {{format specifies type 'unsigned int' but the argument has type 'long'}}
+  // expected-warning@-8 {{'D' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'd'?}}
+  // expected-warning@-8 {{'D' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'd'?}} expected-warning@-8 {{format specifies type 'int' but the argument has type 'long'}}
+  // expected-warning@-8 {{'U' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'u'?}}
+  // expected-warning@-8 {{'U' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'u'?}} expected-warning@-8 {{format specifies type 'unsigned int' but the argument has type 'long'}}
+  // expected-warning@-8 {{'O' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'o'?}}
+  // expected-warning@-8 {{'O' conversion specifier is not supported by ISO C}} expected-note@-8 {{did you mean to use 'o'?}} expected-warning@-8 {{format specifies type 'unsigned int' but the argument has type 'long'}}
 #else
+  // expected-warning@-15 {{invalid conversion specifier 'D'}}
+  // expected-warning@-15 {{invalid conversion specifier 'D'}}
+  // expected-warning@-15 {{invalid conversion specifier 'U'}}
+  // expected-warning@-15 {{invalid conversion specifier 'U'}}
+  // expected-warning@-15 {{invalid conversion specifier 'O'}}
+  // expected-warning@-15 {{invalid conversion specifier 'O'}}
   // expected-warning@-15 {{invalid conversion specifier 'D'}}
   // expected-warning@-15 {{invalid conversion specifier 'D'}}
   // expected-warning@-15 {{invalid conversion specifier 'U'}}
@@ -51,6 +72,18 @@ void testPrintf(short x, long y) {
   printf("% '0.5lD", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
   printf("%#0.5lO", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
   printf("%'0.5lU", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
+
+  wprintf("%hD", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wprintf("%lD", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wprintf("%hU", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
+  wprintf("%lU", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
+  wprintf("%hO", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
+  wprintf("%lO", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
+
+  wprintf("%+'0.5lD", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wprintf("% '0.5lD", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wprintf("%#0.5lO", y);  // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
+  wprintf("%'0.5lU", y);  // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
 }
 
 void testScanf(short *x, long *y) {
@@ -60,5 +93,12 @@ void testScanf(short *x, long *y) {
   scanf("%lU", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
   scanf("%hO", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
   scanf("%lO", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
+
+  wscanf("%hD", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wscanf("%lD", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'd'?}}
+  wscanf("%hU", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
+  wscanf("%lU", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'u'?}}
+  wscanf("%hO", x); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
+  wscanf("%lO", y); // expected-warning{{conversion specifier is not supported by ISO C}} expected-note {{did you mean to use 'o'?}}
 }
 #endif

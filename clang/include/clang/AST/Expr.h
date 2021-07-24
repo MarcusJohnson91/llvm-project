@@ -35,6 +35,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/TrailingObjects.h"
 #include <optional>
 
@@ -1858,10 +1859,69 @@ public:
                                     unsigned NumConcatenated, unsigned Length,
                                     unsigned CharByteWidth);
 
+  ArrayRef<char> getArrayRef() const {
+    assert(getCharByteWidth() == 1 &&
+           "This function is used in places that assume strings use char");
+    std::string Temp(getStrDataAsChar(), getByteLength());
+    return ArrayRef<char>(getStrDataAsChar(), getByteLength());
+  }
+
+  ArrayRef<llvm::UTF16> getArrayRef16() const {
+    assert(getCharByteWidth() == 2 &&
+           "This function is used in places that assume strings use char16_t");
+
+    char16_t *StrArray = new char16_t[getLength() + 1];
+    const char16_t *OGArray =
+        reinterpret_cast<const char16_t *>(getBytes().data());
+    // Now I need to copy the actual data
+    for (size_t Unit = 0; Unit < getLength(); Unit++) {
+      StrArray[Unit] = OGArray[Unit];
+    }
+    return ArrayRef<llvm::UTF16>(
+        reinterpret_cast<const llvm::UTF16 *>(StrArray), getLength());
+    // return ArrayRef<llvm::UTF16>(reinterpret_cast<const llvm:: UTF16 *>(Wat,
+    // getBytes().size());
+    /*
+     getBytes is a StringRef, how do I convert a StringRef to an ArrayRef?
+     */
+    // size_t NumCodeUnits =
+    // std::char_traits<char16_t>::length(reinterpret_cast<const
+    // char16_t*>(getTrailingObjects<char>())); return
+    // ArrayRef<llvm::UTF16>(reinterpret_cast<const llvm::UTF16
+    // *>(getTrailingObjects<char>()), NumCodeUnits);
+  }
+
+  ArrayRef<llvm::UTF32> getArrayRef32() const {
+    assert(getCharByteWidth() == 4 &&
+           "This function is used in places that assume strings use char32_t");
+    char32_t *StrArray = new char32_t[getLength() + 1];
+    const char32_t *OGArray =
+        reinterpret_cast<const char32_t *>(getBytes().data());
+    // Now I need to copy the actual data
+    for (size_t Unit = 0; Unit < getLength(); Unit++) {
+      StrArray[Unit] = OGArray[Unit];
+    }
+    return ArrayRef<llvm::UTF32>(
+        reinterpret_cast<const llvm::UTF32 *>(StrArray), getLength());
+    // return ArrayRef<llvm::UTF32>(reinterpret_cast<const llvm::UTF32
+    // *>(getTrailingObjects<char>()), getLength() * sizeof(llvm::UTF32));
+  }
+
   StringRef getString() const {
     assert(getCharByteWidth() == 1 &&
            "This function is used in places that assume strings use char");
     return StringRef(getStrDataAsChar(), getByteLength());
+  }
+
+  std::string getStringAsChar() const;
+
+  std::wstring getStringAsWChar() const {
+    assert((getCharByteWidth() == 2 || getCharByteWidth() == 4) &&
+           "This function is used in places that assume strings use wchar_t");
+    return std::wstring(
+        reinterpret_cast<const wchar_t *>(getTrailingObjects<char>()),
+        reinterpret_cast<const wchar_t *>(getTrailingObjects<char>() +
+                                          getByteLength()));
   }
 
   /// Allow access to clients that need the byte representation, such as

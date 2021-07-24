@@ -2231,8 +2231,17 @@ unsigned StringLiteralParser::getOffsetOfStringByte(const Token &Tok,
   if (SpellingPtr[0] == 'u' && SpellingPtr[1] == '8')
     SpellingPtr += 2;
 
-  assert(SpellingPtr[0] != 'L' && SpellingPtr[0] != 'u' &&
-         SpellingPtr[0] != 'U' && "Doesn't handle wide or utf strings yet");
+  // Handle UTF-16 strings
+  if (SpellingPtr[0] == 'u' && SpellingPtr[1] != '8')
+    SpellingPtr += 1;
+
+  // Handle UTF-32 strings
+  if (SpellingPtr[0] == 'U')
+    SpellingPtr += 1;
+
+  // Handle wide strings
+  if (SpellingPtr[0] == 'L')
+    SpellingPtr += 1;
 
   // For raw string literals, this is easy.
   if (SpellingPtr[0] == 'R') {

@@ -32,6 +32,7 @@
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/LiteralSupport.h"
 #include "clang/Lex/Preprocessor.h"
+#include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
@@ -1125,6 +1126,77 @@ unsigned StringLiteral::mapCharByteWidth(TargetInfo const &Target,
   assert((CharByteWidth == 1 || CharByteWidth == 2 || CharByteWidth == 4) &&
          "The only supported character byte widths are 1,2 and 4!");
   return CharByteWidth;
+}
+
+std::string StringLiteral::getStringAsChar() const {
+  std::string Output;
+
+  switch (getKind()) {
+  case StringKind::Ascii:
+    LLVM_FALLTHROUGH;
+  case StringKind::UTF8:
+    return getTrailingObjects<
+        char>(); // how does getTrailingObjects convert an aray of chars to a
+                 // std::string? probably through an implicit constructor does
+                 // std::string contain a one argument constuctor? yes there is
+                 // a pointer constructor, but isn't it not null terminated?
+    break;
+  case StringKind::UTF16: {
+    /*
+     /// Construct an ArrayRef from a pointer and length.
+    ArrayRef(const T *data, size_t length) : Data(data), Length(length) {}
+
+    /// Construct an ArrayRef from a range.
+    ArrayRef(const T *begin, const T *end)
+
+     getTrailingObjects returns a pointer
+     */
+    // std::string Trail = getTrailingObjects<char>();
+    // std::string Trail(getTrailingObjects<char>(), getByteLength());
+    // ArrayRef<char> AR(Trail.data(), Trail.size());
+    // ArrayRef<char> AR(getTrailingObjects<char>(), getByteLength());
+    /* Maybe we should instead treat getTrailingObjects as a std::string?
+     * ArrayRef is the type... */
+
+    // ArrayRef<char16_t> AR<char16_t>(getTrailingObjects<char16_t>(),
+    // getByteLength()); std::string Trail = getTrailingObjects<UTF16>();
+    // StringRef SR = StringRef(Trail);
+    // size_t NumCodeUnits =
+    // UTF16_GetLengthInCodeUnits(getTrailingObjects<char>());
+
+    llvm::convertUTF16ToUTF8String(getArrayRef16(), Output);
+    return Output;
+    break;
+  }
+  case StringKind::UTF32: {
+    // std::string Trail = getTrailingObjects<char>();
+    // StringRef SR = StringRef(Trail);
+    //  std::string Trail(getTrailingObjects<char>(), getByteLength());
+    //  ArrayRef<char> AR(Trail.data(), Trail.size());
+    //  ArrayRef<char> AR(getTrailingObjects<char>(), getByteLength());
+    // ArrayRef<char> AR = ArrayRef<char>(getTrailingObjects<char>(),
+    // getTrailingObjects<char>() + getByteLength());
+    llvm::convertUTF32ToUTF8String(getArrayRef32(), Output);
+    return Output;
+    break;
+  }
+  case StringKind::Wide: {
+    // std::string Trail = getTrailingObjects<char>();
+    // StringRef SR = StringRef(Trail);
+    llvm::convertWideToUTF8(getStringAsWChar(), Output);
+    /*
+     getStringAsWchar:
+     return std::wstring(reinterpret_cast<const wchar_t
+     *>(getTrailingObjects<char>()), reinterpret_cast<const wchar_t
+     *>(getTrailingObjects<char>() + getByteLength()));
+
+     ArrayRef(String(getTrailingObjects<char>(), getTrailingObjects<char>() +
+     getByteLength()))
+     */
+    return Output;
+    break;
+  }
+  }
 }
 
 StringLiteral::StringLiteral(const ASTContext &Ctx, StringRef Str,

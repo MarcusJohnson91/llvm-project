@@ -780,13 +780,17 @@ void WalkAST::checkDeprecatedOrUnsafeBufferHandling(const CallExpr *CE,
   bool BoundsProvided = ArgIndex == DEPR_ONLY;
 
   if (!BoundsProvided) {
-    // Currently we only handle (not wide) string literals. It is possible to do
-    // better, either by looking at references to const variables, or by doing
+    // Currently we only handle string literals. It is possible to do better
+    // either by looking at references to const variables, or by doing
     // real flow analysis.
     auto FormatString =
         dyn_cast<StringLiteral>(CE->getArg(ArgIndex)->IgnoreParenImpCasts());
-    if (FormatString && !FormatString->getString().contains("%s") &&
-        !FormatString->getString().contains("%["))
+
+    std::string String = FormatString->getStringAsChar();
+    StringRef StrRef = StringRef(String);
+
+    if (FormatString && StrRef.find("%s") == StringRef::npos &&
+        StrRef.find("%[") == StringRef::npos)
       BoundsProvided = true;
   }
 

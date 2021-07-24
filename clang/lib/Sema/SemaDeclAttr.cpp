@@ -3768,10 +3768,10 @@ static void handleFormatArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   QualType Ty = getFunctionOrMethodParamType(D, Idx.getASTIndex());
 
   bool NotNSStringTy = !isNSStringType(Ty, S.Context);
-  if (NotNSStringTy &&
-      !isCFStringType(Ty, S.Context) &&
+  if (NotNSStringTy && !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       !Ty->castAs<PointerType>()->getPointeeType()->isCharType())) {
+       !Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType(
+           S.getLangOpts()))) {
     S.Diag(AL.getLoc(), diag::err_format_attribute_not)
         << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, 0);
     return;
@@ -3787,9 +3787,10 @@ static void handleFormatArgAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   if (!isNSStringType(Ty, S.Context, /*AllowNSAttributedString=*/true) &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       !Ty->castAs<PointerType>()->getPointeeType()->isCharType())) {
+       !Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType(
+           S.getLangOpts()))) {
     S.Diag(AL.getLoc(), diag::err_format_attribute_result_not)
-        << (NotNSStringTy ? "string type" : "NSString")
+        << (NotNSStringTy ? "string type 3" : "NSString")
         << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, 0);
     return;
   }
@@ -3818,11 +3819,11 @@ static FormatAttrKind getFormatAttrKind(StringRef Format) {
       // Otherwise, check for supported formats.
       .Cases("scanf", "printf", "printf0", "strfmon", SupportedFormat)
       .Cases("cmn_err", "vcmn_err", "zcmn_err", SupportedFormat)
+      .Cases("wprintf", "wscanf", SupportedFormat)
       .Case("kprintf", SupportedFormat)         // OpenBSD.
       .Case("freebsd_kprintf", SupportedFormat) // FreeBSD.
       .Case("os_trace", SupportedFormat)
       .Case("os_log", SupportedFormat)
-
       .Cases("gcc_diag", "gcc_cdiag", "gcc_cxxdiag", "gcc_tdiag", IgnoredFormat)
       .Default(InvalidFormat);
 }
@@ -3916,7 +3917,7 @@ FormatAttr *Sema::mergeFormatAttr(Decl *D, const AttributeCommonInfo &CI,
   return ::new (Context) FormatAttr(Context, CI, Format, FormatIdx, FirstArg);
 }
 
-/// Handle __attribute__((format(type,idx,firstarg))) attributes based on
+/// Handle __attribute__((format(type,format_idx,firstarg))) attributes based on
 /// http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html
 static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   if (!AL.isArgIdent(0)) {
@@ -3938,7 +3939,7 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     II = &S.Context.Idents.get(Format);
   }
 
-  // Check for supported formats.
+  // Check the type parameter
   FormatAttrKind Kind = getFormatAttrKind(Format);
 
   if (Kind == IgnoredFormat)
@@ -3950,7 +3951,7 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     return;
   }
 
-  // checks for the 2nd argument
+  // Check the format_idx parameter
   Expr *IdxExpr = AL.getArgAsExpr(1);
   uint32_t Idx;
   if (!checkUInt32Argument(S, AL, IdxExpr, Idx, 2))
@@ -3981,13 +3982,13 @@ static void handleFormatAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   if (!isNSStringType(Ty, S.Context, true) &&
       !isCFStringType(Ty, S.Context) &&
       (!Ty->isPointerType() ||
-       !Ty->castAs<PointerType>()->getPointeeType()->isCharType())) {
+       !Ty->castAs<PointerType>()->getPointeeType()->isAnyCharacterType())) {
     S.Diag(AL.getLoc(), diag::err_format_attribute_not)
       << IdxExpr->getSourceRange() << getFunctionOrMethodParamRange(D, ArgIdx);
     return;
   }
 
-  // check the 3rd argument
+  // check the firstarg parameter
   Expr *FirstArgExpr = AL.getArgAsExpr(2);
   uint32_t FirstArg;
   if (!checkUInt32Argument(S, AL, FirstArgExpr, FirstArg, 3))

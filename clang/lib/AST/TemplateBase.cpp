@@ -90,15 +90,17 @@ static void printIntegral(const TemplateArgument &TemplArg, raw_ostream &Out,
         Out << "(unsigned char)";
     }
     CharacterLiteral::print(Val.getZExtValue(), CharacterLiteral::Ascii, Out);
-  } else if (T->isAnyCharacterType() && !Policy.MSVCFormatting) {
+  } else if (T->isAnyCharacterType(
+                 T->getAs<TypedefType>()->getDecl()->getLangOpts()) &&
+             !Policy.MSVCFormatting) {
     CharacterLiteral::CharacterKind Kind;
-    if (T->isWideCharType())
+    if (T->isWideCharType(T->getAs<TypedefType>()->getDecl()->getLangOpts()))
       Kind = CharacterLiteral::Wide;
     else if (T->isChar8Type())
       Kind = CharacterLiteral::UTF8;
-    else if (T->isChar16Type())
+    else if (T->isChar16Type(T->getAs<TypedefType>()->getDecl()->getLangOpts()))
       Kind = CharacterLiteral::UTF16;
-    else if (T->isChar32Type())
+    else if (T->isChar32Type(T->getAs<TypedefType>()->getDecl()->getLangOpts()))
       Kind = CharacterLiteral::UTF32;
     else
       Kind = CharacterLiteral::Ascii;

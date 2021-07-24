@@ -437,9 +437,9 @@ bool ScanfSpecifier::fixType(QualType QT, QualType RawQT,
     return false;
 
   // Pointer to a character.
-  if (PT->isAnyCharacterType()) {
+  if (PT->isAnyCharacterType(LangOpt)) {
     CS.setKind(ConversionSpecifier::sArg);
-    if (PT->isWideCharType())
+    if (PT->isWideCharType(LangOpt))
       LM.setKind(LengthModifier::AsWideChar);
     else
       LM.setKind(LengthModifier::None);
