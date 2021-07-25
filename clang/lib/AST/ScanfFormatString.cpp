@@ -261,6 +261,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
       }
@@ -302,6 +304,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
       }
@@ -337,6 +341,10 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsLong:
         case LengthModifier::AsWide:
           return ArgType::PtrTo(ArgType(Ctx.getWideCharType(), "wchar_t"));
+        case LengthModifier::AsUTF16:
+          return ArgType::PtrTo(ArgType(Ctx.getChar16Type(), "char16_t"));
+        case LengthModifier::AsUTF32:
+          return ArgType::PtrTo(ArgType(Ctx.getChar32Type(), "char32_t"));
         case LengthModifier::AsAllocate:
         case LengthModifier::AsMAllocate:
           return ArgType::PtrTo(ArgType::CStrTy);
@@ -354,6 +362,10 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::None:
         case LengthModifier::AsWide:
           return ArgType::PtrTo(ArgType(Ctx.getWideCharType(), "wchar_t"));
+        case LengthModifier::AsUTF16:
+          return ArgType::PtrTo(ArgType(Ctx.getChar16Type(), "char16_t"));
+        case LengthModifier::AsUTF32:
+          return ArgType::PtrTo(ArgType(Ctx.getChar32Type(), "char32_t"));
         case LengthModifier::AsAllocate:
         case LengthModifier::AsMAllocate:
           return ArgType::PtrTo(ArgType(ArgType::WCStrTy, "wchar_t *"));
@@ -398,6 +410,8 @@ ArgType ScanfSpecifier::getArgType(ASTContext &Ctx) const {
         case LengthModifier::AsInt32:
         case LengthModifier::AsInt3264:
         case LengthModifier::AsWide:
+        case LengthModifier::AsUTF16:
+        case LengthModifier::AsUTF32:
         case LengthModifier::AsShortLong:
           return ArgType::Invalid();
         }
@@ -494,9 +508,16 @@ bool ScanfSpecifier::fixType(QualType QT, QualType RawQT,
       LM.setKind(LengthModifier::AsLongDouble);
       break;
 
+    case BuiltinType::Char16:
+      LM.setKind(LengthModifier::AsUTF16);
+      break;
+    case BuiltinType::Char32:
+      LM.setKind(LengthModifier::AsUTF32);
+
     // Don't know.
     default:
       return false;
+      break;
   }
 
   // Handle size_t, ptrdiff_t, etc. that have dedicated length modifiers in C99.

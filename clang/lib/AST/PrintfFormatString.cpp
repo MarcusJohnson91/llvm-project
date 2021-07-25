@@ -535,6 +535,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
       case LengthModifier::AsWide:
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
         return ArgType::Invalid();
     }
 
@@ -570,6 +572,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsAllocate:
       case LengthModifier::AsMAllocate:
       case LengthModifier::AsWide:
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
         return ArgType::Invalid();
     }
 
@@ -618,6 +622,8 @@ ArgType PrintfSpecifier::getScalarArgType(ASTContext &Ctx,
       case LengthModifier::AsInt3264:
       case LengthModifier::AsInt64:
       case LengthModifier::AsWide:
+      case LengthModifier::AsUTF16:
+      case LengthModifier::AsUTF32:
         return ArgType::Invalid();
       case LengthModifier::AsShortLong:
         llvm_unreachable("only used for OpenCL which doesn not handle nArg");

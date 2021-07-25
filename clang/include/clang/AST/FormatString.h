@@ -65,22 +65,24 @@ class LengthModifier {
 public:
   enum Kind {
     None,
-    AsChar,       // 'hh'
-    AsShort,      // 'h'
-    AsShortLong,  // 'hl' (OpenCL float/int vector element)
-    AsLong,       // 'l'
-    AsLongLong,   // 'll'
-    AsQuad,       // 'q' (BSD, deprecated, for 64-bit integer types)
-    AsIntMax,     // 'j'
-    AsSizeT,      // 'z'
-    AsPtrDiff,    // 't'
-    AsInt32,      // 'I32' (MSVCRT, like __int32)
-    AsInt3264,    // 'I'   (MSVCRT, like __int3264 from MIDL)
-    AsInt64,      // 'I64' (MSVCRT, like __int64)
-    AsLongDouble, // 'L'
-    AsAllocate,   // for '%as', GNU extension to C90 scanf
-    AsMAllocate,  // for '%ms', GNU extension to scanf
-    AsWide,       // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
+    AsChar,             // 'hh'
+    AsShort,            // 'h'
+    AsShortLong,        // 'hl' (OpenCL float/int vector element)
+    AsLong,             // 'l'
+    AsLongLong,         // 'll'
+    AsQuad,             // 'q' (BSD, deprecated, for 64-bit integer types)
+    AsIntMax,           // 'j'
+    AsSizeT,            // 'z'
+    AsPtrDiff,          // 't'
+    AsInt32,            // 'I32' (MSVCRT, like __int32)
+    AsInt3264,          // 'I'   (MSVCRT, like __int3264 from MIDL)
+    AsInt64,            // 'I64' (MSVCRT, like __int64)
+    AsLongDouble,       // 'L'
+    AsAllocate,         // for '%as', GNU extension to C90 scanf
+    AsMAllocate,        // for '%ms', GNU extension to scanf
+    AsUTF16,            // for '%U16(c|s)', C2x?
+    AsUTF32,            // for '%U32(c|s)', C2x?
+    AsWide,             // 'w' (MSVCRT, like l but only for c, C, s, S, or Z
     AsWideChar = AsLong // for '%ls', only makes sense for printf
   };
 
@@ -248,8 +250,19 @@ protected:
 
 class ArgType {
 public:
-  enum Kind { UnknownTy, InvalidTy, SpecificTy, ObjCPointerTy, CPointerTy,
-              AnyCharTy, CStrTy, WCStrTy, WIntTy };
+  enum Kind {
+    UnknownTy,
+    InvalidTy,
+    SpecificTy,
+    ObjCPointerTy,
+    CPointerTy,
+    AnyCharTy,
+    CStrTy,
+    WCStrTy,
+    WIntTy,
+    Char16Ty,
+    Char32Ty
+  };
 
   /// How well a given conversion specifier matches its argument.
   enum MatchKind {

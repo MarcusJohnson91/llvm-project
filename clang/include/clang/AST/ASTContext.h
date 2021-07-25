@@ -1754,6 +1754,16 @@ public:
   /// defined in <stddef.h> as defined by the target.
   QualType getWideCharType() const { return WideCharTy; }
 
+  /// Return the type of char16 characters. In C++, this returns the
+  /// unique char16_t type. In C11, this returns a type compatible with the type
+  /// defined in <uchar.h> as defined by the target.
+  QualType getChar16Type() const { return Char16Ty; }
+
+  /// Return the type of char32 characters. In C++, this returns the
+  /// unique char32_t type. In C11, this returns a type compatible with the type
+  /// defined in <uchar.h> as defined by the target.
+  QualType getChar32Type() const { return Char32Ty; }
+
   /// Return the type of "signed wchar_t".
   ///
   /// Used when in C++, as a GCC extension.

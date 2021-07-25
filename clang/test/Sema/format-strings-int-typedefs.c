@@ -10,8 +10,17 @@ void test(void) {
   printf("%td", 42.0); // expected-warning {{format specifies type 'ptrdiff_t' (aka 'int')}}
   printf("%lc", 42.0); // expected-warning {{format specifies type 'wint_t' (aka 'int')}}
   printf("%ls", 42.0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  printf("%U16c", 42.0); // expected-warning {{format specifies type 'char16_t' (aka 'int')}}
+  printf("%U16s", 42.0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  printf("%U32c", 42.0); // expected-warning {{format specifies type 'char32_t' (aka 'int')}}
+  printf("%U32s", 42.0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   printf("%S", 42.0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   printf("%C", 42.0);  // expected-warning {{format specifies type 'wchar_t' (aka 'int')}}
+
+  wprintf(L"%U16c", 42.0); // expected-warning {{format specifies type 'char16_t' (aka 'short')}}
+  wprintf(L"%U16s", 42.0); // expected-warning {{format specifies type 'char16_t *' (aka 'short *')}}
+  wprintf(L"%U32c", 42.0); // expected-warning {{format specifies type 'char32_t' (aka 'int')}}
+  wprintf(L"%U32s", 42.0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
 
   scanf("%jd", 0); // expected-warning {{format specifies type 'intmax_t *' (aka 'long long *')}}
   scanf("%ju", 0); // expected-warning {{format specifies type 'uintmax_t *' (aka 'unsigned long long *')}}
@@ -19,9 +28,17 @@ void test(void) {
   scanf("%td", 0); // expected-warning {{format specifies type 'ptrdiff_t *' (aka 'int *')}}
   scanf("%lc", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   scanf("%ls", 0); // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
+  scanf("%U16c", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  scanf("%U16s", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  scanf("%U32c", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
+  scanf("%U32s", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
   scanf("%S",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
   scanf("%C",  0);  // expected-warning {{format specifies type 'wchar_t *' (aka 'int *')}}
 
+  wscanf("%U16c", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  wscanf("%U16s", 0); // expected-warning {{format specifies type 'char16_t *' (aka 'int *')}}
+  wscanf("%U32c", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
+  wscanf("%U32s", 0); // expected-warning {{format specifies type 'char32_t *' (aka 'int *')}}
 
   // typedef size_t et al. to something crazy.
   typedef void *size_t;

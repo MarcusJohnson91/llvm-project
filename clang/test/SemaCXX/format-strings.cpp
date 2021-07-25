@@ -24,6 +24,8 @@ void f(char **sp, float *fp) {
 
 void g() {
   printf("%ls", "foo"); // expected-warning{{format specifies type 'wchar_t *' but the argument has type 'const char *'}}
+  printf("%U16s", "foo"); // expected-warning{{format specifies type 'char16_t *' but the argument has type 'const char *'}}
+  printf("%U32s", "foo"); // expected-warning{{format specifies type 'char32_t *' but the argument has type 'const char *'}}
 }
 
 // Test that we properly handle format_idx on C++ members.
