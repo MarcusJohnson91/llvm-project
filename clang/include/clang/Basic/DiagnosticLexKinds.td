@@ -403,6 +403,7 @@ def warn_cxx2b_compat_warning_directive : Warning<
 def warn_c2x_compat_warning_directive : Warning<
   "#warning is incompatible with C standards before C2x">,
   InGroup<CPre2xCompat>, DefaultIgnore;
+def ext_pp_repeat_directive : Extension<"#repeat is a language extension">;
 
 def ext_pp_extra_tokens_at_eol : ExtWarn<
   "extra tokens at end of #%0 directive">, InGroup<ExtraTokens>;
@@ -418,6 +419,7 @@ def ext_pp_bad_vaopt_use
 
 def err_pp_missing_lparen_in_vaopt_use : Error<
   "missing '(' following __VA_OPT__">;
+def err_pp_missing_lparen : Error<"missing '('">;
 def err_pp_vaopt_nested_use : Error<
   "__VA_OPT__ cannot be nested within its own replacement tokens">;
 
@@ -685,6 +687,10 @@ def err_pp_module_build_missing_end : Error<
 def err_defined_macro_name : Error<"'defined' cannot be used as a macro name">;
 def err_paste_at_start : Error<
   "'##' cannot appear at start of macro expansion">;
+def err_pp_repeat_requires_two_args : Error<"repeat requires two arguments">;
+def err_pp_repeat_invalid_count : Error<"count parameter must be at least 1">;
+def err_pp_need_constant_integer : Error<"%0 must be a constant integer">;
+def err_pp_repeat_invalid_type : Error<"type of parameter is '<%0>' but should be: '%1'">;
 def err_paste_at_end : Error<"'##' cannot appear at end of macro expansion">;
 def ext_paste_comma : Extension<
   "token pasting of ',' and __VA_ARGS__ is a GNU extension">, InGroup<GNUZeroVariadicMacroArguments>;

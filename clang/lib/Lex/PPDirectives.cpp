@@ -1244,6 +1244,10 @@ void Preprocessor::HandleDirective(Token &Result) {
     case tok::pp_pragma:
       return HandlePragmaDirective({PIK_HashPragma, SavedHash.getLocation()});
 
+    case tok::pp_repeat:
+      return HandleRepeatDirective(SavedHash.getLocation(), Result);
+      break;
+
     // GNU Extensions.
     case tok::pp_import:
       return HandleImportDirective(SavedHash.getLocation(), Result);
@@ -1671,6 +1675,121 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
     if (!Invalid)
       Callbacks->Ident(Tok.getLocation(), Str);
   }
+}
+
+/// HandleRepeatDirective: The '\#repeat' token has just been read
+void Preprocessor::HandleRepeatDirective(SourceLocation HashLoc, Token &Tok) {
+  /* #repeat <Times2Repeat> <Operation2Repeat> */
+  
+
+  /* This is the first arg, the number of times to repeat this operation */
+  uint64_t TimesToRepeat = 0;
+  Lex(Tok); // MUST expand, probably a macro, not an integer literal.
+  if (Tok.is(tok::numeric_constant)) {
+    parseSimpleIntegerLiteral(Tok, TimesToRepeat);
+    if (TimesToRepeat <= 0) {
+      Diag(Tok.getLocation(), diag::err_pp_repeat_invalid_count);
+      DiscardUntilEndOfDirective();
+      return;
+    }
+  } else {
+    Diag(Tok.getLocation(), diag::err_pp_need_constant_integer);
+  }
+
+  /* This is the second argument, the operation to be repeated */
+  MacroInfo *const Repeatee = ReadOptionalMacroParameterListAndBody(
+      Tok, /*ImmediatelyAfterHeaderGuard=*/false); // What is MI? it should be the just created tokens/identifier for what to repeat
+  /*Instead of reading the tokens ourselves and duplicating the code of ReadOptionalMacroParameterListAndBody why don't we just call that function to do it for us? */
+  /*
+  std::vector<Token> OperationTokens(1);
+  // Now we start reading the tokens for an expression or identifier
+  do {
+    LexUnexpandedToken(Tok);
+    OperationTokens.push_back(Tok);
+  } while (Tok.isNot(tok::eod));
+  */
+  /*
+  if (Repeatee->isFunctionLike()) {
+    // This is an error, function-like macros can't be repeated, it doesn't make sense.
+    Diag(Tok.getLocation(), diag::err_pp_repeat_function_macro);
+    DiscardUntilEndOfDirective();
+    return;
+  }
+  */ // Actually, I think allowing function-like macros to be expanded repeatedly is precisely what I need for registering test cases with #repeat and _Pragma(redefine_macro)
+
+  bool MacroShadowsKeyword;
+  if (Repeatee->tokens().size() == 1) { // If it's just a name, check that the name is valid.
+    ReadMacroName(Repeatee.tokens[0], /*MacroUse isDefineUndef*/MU_Define,
+                  /*bool *ShadowFlag*/&MacroShadowsKeyword);
+    IdentifierInfo *II = Repeatee.tokens[0].getIdentifierInfo(); // Get the IdentifierInfo from the array of
+                                  // tokens so we can look up the identifier, we
+                                  // need to inject that macro into the token
+                                  // stream Times2Repeat times
+
+  } else { // The body of the Repeat directive contains tokens directly, not an identifier, so copy these tokens and inject them.
+    MacroInfo *const MI = AllocateMacroInfo(MacroNameTok.getLocation()); // Create a new macro from the assorted Tokens we just read into OperationTokens
+    /* Just copy this part from the _Pragma(repeat_macro) branch, it's exactly what we need to be doing, minus the RawLexer part; replace the RawLexer part with calling LexUnexpended in a loop, with the stop condition being EndOfDirective */
+
+    Token RepeatExpressionTok;
+    SmallVector<Token, 1> ExpressionTokens;
+    LexUnexpandedToken(RepeatExpressionTok);
+    ExpressionTokens.push_back(RepeatExpressionTok);
+    while (RepeatExpressionTok.isNot(tok::eod)) {
+      LexUnexpandedToken(RepeatExpressionTok);
+      ExpressionTokens.push_back(RepeatExpressionTok);
+    }
+
+    MacroInfo NewDefinitionMI;
+    NewDefinitionMI.allocateTokens(ExpressionTokens.size(), BP);
+    NewDefintionMI.setTokens(ExpressionTokens, BP);
+
+    DefMacroDirective *DMD =
+        DefMacroDirective(NewDefinitionMI, RepeatExpressionTok.getLocation());
+
+    appendDefMacroDirective(II, NewDefinitionMI);
+
+    for (size_t Repetition = 0; Repetition < Times2Repeat; Repetition++) {
+        // Just EnterTokenStream with the contents of ExpressionTokens
+      EnterTokenStream(ExpressionTokens, /*DisableMacroExpansion*/ false, /*IsReinject*/ true);
+    }
+
+  
+
+  /*
+   Preprocessor::HandleRepeatDirective OpTok.getName() = 'eod'
+   Preprocessor::HandleRepeatDirective OpTok.getName() = 'r_brace'
+   Preprocessor::HandleRepeatDirective OpTok.getName() = 'semi'
+   */
+
+  /* Do we need to inject an eod token after each iteration? I used to think so,
+   * but now I'm not so sure */
+  /* DO NOT inject an EoD token, remove it from the arrayref, it fucks the whole thing up. */
+  
+
+  /* Inject the Operation tokens into the stream TimesToRepeat times */
+  /*
+      // IdentifierInfoLookup *IIL =
+      // getIdentifierTable().getExternalIdentifierLookup(); IdentifierInfo *II
+      // = IIL->get(OperationTokens[0]);
+      const IdentifierInfo *II = OperationTokens[0].getIdentifierInfo();
+      if (II->hasMacroDefinition()) {
+        const MacroInfo *MI = getMacroInfo(II);
+        DiscardUntilEndOfDirective();
+        for (uint64_t Repeat = 0; Repeat < TimesToRepeat; Repeat++) {
+          Token Replacement = MI->getReplacementToken(0);
+          //EnterToken(Replacement, IsReinject false);
+        }
+        return;
+      }
+      // How do we go from IdentifierInfo to actually expand the macro?
+    }
+  } else if (OperationTokens[0].isNot(tok::identifier)) {
+
+  }
+                                                 */
+  CheckEndOfDirective("repeat");
+  // NEEDS to be AFTER injecting tokens for 100% sure
+  return;
 }
 
 /// Handle a #public directive.
