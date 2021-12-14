@@ -476,6 +476,8 @@ def err_pp_through_header_not_seen : Error<
 def err_pp_pragma_hdrstop_not_seen : Error<
   "#pragma hdrstop not seen while attempting to use precompiled header">,
   DefaultFatal;
+def err_pp_macro_not_def : Error<"%0 macro not defined">;
+def err_pp_macro_function_like : Error<"redefine_macro is only supported with object-like macros">;
 def warn_pp_macro_def_mismatch_with_pch : Warning<
   "definition of macro %0 does not match definition in precompiled header">,
   InGroup<ClangClPch>;
@@ -753,6 +755,8 @@ def ext_cxx2b_pp_directive : ExtWarn<
   InGroup<CXX2b>;
 
 def err_pp_visibility_non_macro : Error<"no macro named %0">;
+
+def err_pp_redefine_undefined_macro : Error<"can't redefine an undefined macro %0">
 
 def err_pp_arc_cf_code_audited_syntax : Error<"expected 'begin' or 'end'">;
 def err_pp_double_begin_of_arc_cf_code_audited : Error<

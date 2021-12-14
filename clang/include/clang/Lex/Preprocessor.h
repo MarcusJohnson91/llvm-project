@@ -2778,6 +2778,7 @@ public:
   void HandlePragmaSystemHeader(Token &SysHeaderTok);
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaPushMacro(Token &Tok);
+  void HandlePragmaRedefineMacro(Token &Tok);
   void HandlePragmaPopMacro(Token &Tok);
   void HandlePragmaIncludeAlias(Token &Tok);
   void HandlePragmaModuleBuild(Token &Tok);

@@ -308,8 +308,9 @@ private:
 ///
 /// MacroDirectives, associated with an identifier, are used to model the macro
 /// history. Usually a macro definition (MacroInfo) is where a macro name
-/// becomes active (MacroDirective) but #pragma push_macro / pop_macro can
-/// create additional DefMacroDirectives for the same MacroInfo.
+/// becomes active (MacroDirective) but #pragma push_macro / pop_macro /
+/// redefine_macro can create additional DefMacroDirectives for the same
+/// MacroInfo.
 class MacroDirective {
 public:
   enum Kind {

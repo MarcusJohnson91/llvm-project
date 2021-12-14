@@ -671,6 +671,232 @@ void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
   }
 }
 
+/// Handle \#pragma redefine_macro.
+///
+/// The syntax is:
+/// \code
+///   #pragma redefine_macro("macro_to_redefine new_definition_tokens...")
+/// \endcode
+/// new_definition_tokens are expanded.
+void Preprocessor::HandlePragmaRedefineMacro(Token &RedefineMacroTok) {
+  // Parse the pragma directive and get the macro IdentifierInfo*.
+  // Remember the pragma token location.
+  SourceLocation RedefineLoc = RedefineMacroTok.getLocation();
+
+  // _Pragma(redefine_macro("BitBuffer_NumTests BitBuffer_NumTests + 1"))
+  // #pragma redefine_macro("BitBuffer_NumTests BitBuffer_NumTests + 1")
+  // The first token we see^
+
+  // '('
+  Lex(RedefineMacroTok);
+  if (RedefineMacroTok.isNot(tok::l_paren)) {
+    Diag(RedefineLoc, diag::err_pragma_message_malformed)
+        << getSpelling(RedefineMacroTok);
+  }
+
+  if (RedefineMacroTok.hasUDSuffix()) {
+    Diag(RedefineLoc, diag::err_invalid_string_udl);
+  }
+
+  // Get the name and new definition of the macro to redefine as a string
+  Lex(RedefineMacroTok);
+  if (RedefineMacroTok.isNot(tok::string_literal)) {
+    Diag(RedefineLoc, diag::err_pragma_message_malformed)
+        << getSpelling(RedefineMacroTok);
+  }
+
+  std::string RedefineMacroStr = getSpelling(RedefineMacroTok);
+
+  /* Ok, we don't want to create a token from the entire string, we want to
+   * search for the first space, and use that to seperate the pieces */
+
+  size_t EndOfMacroName = RedefineMacroStr.find_first_of(' ') - 1;
+  /* Macro name is between [1] and [EndOfMacroName] "MacroName NewDefinitionTokens + 1" */
+
+
+  Token MacroNameTok;
+  MacroNameTok.startToken();
+  MacroNameTok.setKind(tok::raw_identifier);
+  CreateString(StringRef(&RedefineMacroStr[1], &RedefineMacroStr[EndOfMacroName]), MacroNameTok);
+
+  IdentifierInfo *II = LookUpIdentifierInfo(MacroNameTok);
+  
+  if (!II->isDefined()) {
+    // Error, to redefine a macro the macro must be currently defined.
+    Diag(RedefineLoc, diag::err_pp_redefine_undefined_macro) << getSpelling(MacroNameTok);
+    return;
+  }
+
+  // IdentifierInfo is valid, so let's append the history of the macro with the new expanded tokens
+
+  // Now we need to read the new defintiion tokens from the original string literal RedefineMacroStr, starting at [EndOfMacroName + 2, to skip the space]
+  Lexer RedefineLexer(RedefineLoc, getLangOpts(), RedefineMacroStr[EndOfMacroName + 2],
+                      RedefineMacroStr[EndOfMacroName + 2],
+                      RedefineMacroStr[RedefineMacroStr.size() - 1]); // End is .size() - 1 to exclude the trailing "
+  RedefineLexer.ParsingPreprocessorDirective = true;
+  RedefineLexer.Is_PragmaLexer = true;
+
+  Token RedefineExpressionTok;
+  SmallVector<Token, 1> ExpressionTokens;
+  bool RawLexerIsFinished = false;
+  while (!RawLexerIsFinished) {
+    RawLexerIsFinished = LexFromRawLexer(RedefineExpressionTok);
+    ExpressionTokens.push_back(RedefineExpressionTok);
+  }
+
+  MacroInfo NewDefinitionMI;
+  NewDefinitionMI.allocateTokens(ExpressionTokens.size(), BP);
+  NewDefintionMI.setTokens(ExpressionTokens, BP);
+
+  DefMacroDirective *DMD = DefMacroDirective(NewDefinitionMI, RedefineMacroTok.getLocation());
+
+  appendDefMacroDirective(II, NewDefinitionMI);
+
+  /* ExpressionTokens is a SmallVector that contains all of the remaining tokens, that are being used to define the new Macro; Now all I need to do is create a MacroInfo? for them, and append this MacroInfo to the Macro history of the MacroIdentifier, II; aka use AllocateTokens and SetTokens on a new MacroInfo. */
+  /* OLD CODE BELOW */
+
+  // Remember the redefine_macro string.
+  std::string RedefineMacroStr = getSpelling(RedefineMacroTok);
+  printf("\n\nRedefineMacroStr = '%s'\n", RedefineMacroStr.c_str());
+  assert(RedefineMacroStr[0] == '"' &&
+         RedefineMacroStr[RedefineMacroStr.size() - 1] == '"' &&
+         "Invalid string token!");
+
+  const char *RedefineMacroStrStart = RedefineMacroStr.c_str();
+  const char *RedefineMacroStrFirstChar = RedefineMacroStrStart + 1;
+  const char *RedefineMacroStrEnd =
+      RedefineMacroStrStart + (RedefineMacroStr.size() - 1); // Was -3
+  printf("RedefineMacroStrStart[0] = '%c'\n", RedefineMacroStrStart[0]);
+  printf("RedefineMacroStrFirstChar[0] = '%c'\n", RedefineMacroStrFirstChar[0]);
+  printf("RedefineMacroStrEnd[0] = '%c'\n", RedefineMacroStrEnd[0]);
+
+  Lexer RedefineLexer(RedefineLoc, getLangOpts(), RedefineMacroStrStart,
+                      RedefineMacroStrFirstChar, RedefineMacroStrEnd);
+  RedefineLexer.ParsingPreprocessorDirective = true;
+  RedefineLexer.Is_PragmaLexer = true;
+
+  Token RedefineNameTok;
+  LexFromRawLexer(RedefineNameTok); // so this returns individual tokens, all these tokens are for the new definition, so we need to do this in a loop until it returns a bool, saying if there's more tokens left? it returns true when it's at the end
+
+  
+  /*
+  size_t SpaceOffset = RedefineMacroStr.find_first_of(' ');
+  char *IdentifierStr = (char*) calloc(SpaceOffset + 1, sizeof(char));
+  memcpy(IdentifierStr, RedefineMacroStrStart, SpaceOffset - 1);
+  printf("IdentifierStr = '%s'\n", IdentifierStr);
+  RedefineNameTok.setRawIdentifierData(IdentifierStr); // MacroString to first
+  space? RedefineNameTok.setKind(tok::identifier);
+   */
+  /*
+   if (Result.is(tok::raw_identifier)) {
+   Result.setRawIdentifierData(TokPtr);
+   if (!isLexingRawMode()) {
+   IdentifierInfo *II = PP->LookUpIdentifierInfo(Result);
+   if (II->isHandleIdentifierCase())
+   return PP->HandleIdentifier(Result);
+   }
+   return true;
+   }
+   */
+
+  IdentifierInfo *RedefineID = LookUpIdentifierInfo(RedefineNameTok);
+  if (!RedefineID->hasMacroDefinition()) {
+    Diag(RedefineLoc, diag::err_pp_macro_not_def)
+        << getSpelling(RedefineNameTok);
+    // printf("Error: RedefineID has not been previously defined\n");
+  }
+  if (getMacroInfo(RedefineID)->isFunctionLike()) {
+    Diag(RedefineLoc, diag::err_pp_macro_function_like)
+        << getSpelling(RedefineNameTok);
+    // printf("Error: RedefineID is a function-like macro\n");
+  }
+  // Ok, so the identifier was found, now just gotta read the tokens and install
+  // the new definition.
+
+  printf("RedefineNameTok = '%s'\n", RedefineID->getName().data());
+
+  SmallVector<Token, 1> RedefExpToks;
+  Token RedefExpTok;
+
+  do {
+    RedefineLexer.LexFromRawLexer(RedefExpTok);
+    RedefExpToks.push_back(RedefExpTok);
+  } while (RedefineLexer.getBufferLocation() < RedefineMacroStrEnd &&
+           RedefExpTok.isNot(tok::eod));
+  /*
+  printf("NumTokens = '%zu'\n", RedefExpToks.size());
+  for (size_t TokenID = 0; TokenID < RedefExpToks.size(); TokenID++) {
+    if (RedefExpToks[TokenID].isNot(tok::unknown)) {
+      Token ThisToken = RedefExpToks[TokenID];
+      const char *Str4 = ThisToken.getRawIdentifier().data();
+      std::string Identifier(Str4, Str4 + ThisToken.getRawIdentifier().size() -
+  0); printf("RedefExpToks[%zu]: '%s' = '%s'\n", TokenID, ThisToken.getName(),
+             Identifier.c_str());
+    }
+  } // Crashes somewhere after this
+   */
+
+  MacroInfo *RedefMI = AllocateMacroInfo(RedefineMacroTok.getLocation());
+  RedefMI->setTokens(ArrayRef<Token>(RedefExpToks), getPreprocessorAllocator()); // BP
+  // RedefMI->setIsAllowRedefinitionsWithoutWarning(false);
+  appendDefMacroDirective(RedefineID, RedefMI, RedefineMacroTok.getLocation()); // appendMacroDirective is better
+  //MacroDirective MD = MacroDirective(MD_Define, RedefineMacroTok.getLocation());
+  //appendMacroDirective(II, MD);
+
+  // PreprocessingRecord *Record = getPreprocessingRecord();
+  // Record->RegisterMacroDefinition(RedefMI, );
+  // MacroDefinitionRecord *MDRec = Record->findMacroDefinition(RedefMI2);
+
+  /* Old code below */
+  /*
+    llvm::DenseMap<IdentifierInfo *, std::vector<MacroInfo *>>::iterator iter =
+    PragmaPushMacroInfo.find(RedefineID);
+    if (iter != PragmaPushMacroInfo.end()) {
+      //MacroInfo *MI = getMacroInfo(RedefineID);
+      //assert(MI != NULL);
+      SourceLocation RedefExpLoc = RedefExpToks[0].getLocation();
+      MacroInfo *RedefMI =
+      AllocateMacroInfo(RedefExpLoc); // getMacroInfo(RedefineID); // Correct;
+    might be allocating at the wrong location? th location should probably be
+    the location of the first token in the new expression, so token [1]?
+      assert(RedefMI != NULL);
+
+      // Allow the original MacroInfo to be redefined later.
+      //RedefMI->setIsAllowRedefinitionsWithoutWarning(true);
+      ArrayRef<Token> AR = ArrayRef<Token>(RedefExpToks);
+      RedefMI->setTokens(ArrayRef<Token>(RedefExpToks), getPreprocessorAllocator());
+      Token LastExpTok = RedefExpToks[RedefExpToks.size() - 1];
+      RedefMI->setDefinitionEndLoc(LastExpTok.getLocation());
+      appendDefMacroDirective(RedefineID, RedefMI);
+      //RedefMI->setIsAllowRedefinitionsWithoutWarning(false);
+    } else {
+      printf("Skipped Setting the new tokens!!!!!!!!!!!!\n");
+    }
+   */
+  /*
+   It just didn't find the new ID. explains everything, really.
+   */
+
+  /* Ok, now we just need to append the new Macro to the old macro name... */
+  /*
+  MacroInfo *MI2 = AllocateMacroInfo(RedefineLoc);
+  MI2->setIsAllowRedefinitionsWithoutWarning(true);
+  MI2->setTokens(ArrayRef<Token>(RedefExpToks), BP);
+  Token LastExpTok = RedefExpToks[RedefExpToks.size() - 1];
+  MI2->setDefinitionEndLoc(LastExpTok.getLocation());
+  MI2->setIsAllowRedefinitionsWithoutWarning(false);
+  DefMacroDirective *RedefMD = appendDefMacroDirective(RedefineID, MI2);
+
+  appendMacroDirective(RedefineID, RedefMD);
+   */
+
+  /*
+   Now we just hae to finish lexing the rest of the line, like all that should
+   be left is ')' but honestly we should be able to just DiscardUntilEOD
+   */
+  DiscardUntilEndOfDirective();
+}
+
 void Preprocessor::HandlePragmaIncludeAlias(Token &Tok) {
   // We will either get a quoted filename or a bracketed filename, and we
   // have to track which we got.  The first filename is the source name,
@@ -1846,6 +2072,17 @@ struct PragmaPopMacroHandler : public PragmaHandler {
   }
 };
 
+/// PragmaRedefineMacroHandler - "\#pragma redefine_macro" sets the value of the
+/// macro to the value on the RHS of the pragma.
+struct PragmaRedefineMacroHandler : public PragmaHandler {
+  PragmaRedefineMacroHandler() : PragmaHandler("redefine_macro") {}
+
+  void HandlePragma(Preprocessor &PP, PragmaIntroducer Introducer,
+                    Token &RedefineMacroTok) override {
+    PP.HandlePragmaRedefineMacro(RedefineMacroTok);
+  }
+};
+
 /// PragmaARCCFCodeAuditedHandler -
 ///   \#pragma clang arc_cf_code_audited begin/end
 struct PragmaARCCFCodeAuditedHandler : public PragmaHandler {
@@ -2121,6 +2358,7 @@ void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler(new PragmaOnceHandler());
   AddPragmaHandler(new PragmaMarkHandler());
   AddPragmaHandler(new PragmaPushMacroHandler());
+  AddPragmaHandler(new PragmaRedefineMacroHandler());
   AddPragmaHandler(new PragmaPopMacroHandler());
   AddPragmaHandler(new PragmaMessageHandler(PPCallbacks::PMK_Message));
 
