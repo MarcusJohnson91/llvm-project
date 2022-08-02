@@ -1878,6 +1878,8 @@ private:
 
   ExprResult ParseGenericSelectionExpression();
 
+  ExprResult ParseOverloadExpression();
+
   ExprResult ParseObjCBoolLiteral();
 
   ExprResult ParseFoldExpression(ExprResult LHS, BalancedDelimiterTracker &T);

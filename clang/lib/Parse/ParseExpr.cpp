@@ -1307,6 +1307,9 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw__Generic:   // primary-expression: generic-selection [C11 6.5.1]
     Res = ParseGenericSelectionExpression();
     break;
+  case tok::kw__Overload:
+    Res = ParseOverloadExpression();
+    break;
   case tok::kw___builtin_available:
     Res = ParseAvailabilityCheckExpr(Tok.getLocation());
     break;
@@ -3353,6 +3356,32 @@ ExprResult Parser::ParseGenericSelectionExpression() {
                                            T.getCloseLocation(),
                                            ControllingExpr.get(),
                                            Types, Exprs);
+}
+
+/// ParseOverloadExpression - Parse a C2Y overload-expression
+///
+/// \verbatim
+///    overload-expression:
+///           _Overload ( operator-identifier , function-identifier )
+/// \endverbatim
+ExprResult Parser::ParseOverloadExpression() {
+  assert(Tok.is(tok::kw__Overload) && "_Overload keyword expected");
+
+  SourceLocation KeyLoc = ConsumeToken();
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  /*
+   plus,
+   minus,
+   star/multiply
+   slash/divide
+
+
+   */
+
+  // Okay so now we should be at the operator identifier, so consume the next
+  // token and check if it's an identifier, then check to make sure that
+  // identifier is a keyword, then make sure it's an allowed operator, like
+  // +,-,*,/=,+=,-=,*=,/=,==,!= and probably a few others
 }
 
 /// Parse A C++1z fold-expression after the opening paren and optional
